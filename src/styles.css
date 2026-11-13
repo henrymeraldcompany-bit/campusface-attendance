@@ -172,6 +172,18 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   transition: border .18s ease, background .18s ease;
 }
 .install-button:hover { border-color: #a8cecc; background: #f3fbfa; }
+.topbar-settings {
+  display: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #e1e9ee;
+  border-radius: 9px;
+  color: #67808d;
+  background: #fff;
+}
+.topbar-settings.active { color: var(--teal); border-color: #c7e1df; background: #eff8f7; }
 
 .main-content { width: min(100%, 1420px); margin: 0 auto; padding: 30px 42px 60px; }
 .preview-notice {
@@ -253,7 +265,30 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .field input::placeholder { color: #aab5c0; }
 .field input:focus, .field select:focus { border-color: #8dc3c0; outline: 3px solid rgba(22,123,123,.1); }
 .course-picker { margin-top: 24px; padding: 17px; border: 1px solid #e7edf1; border-radius: 11px; background: #fbfcfd; }
-.course-picker-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 14px; }
+.course-picker-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; }
+.course-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(100%, 260px);
+  min-height: 34px;
+  margin-bottom: 12px;
+  padding: 0 10px;
+  border: 1px solid #e5ebef;
+  border-radius: 8px;
+  color: #93a2ae;
+  background: #fff;
+}
+.course-search-wrap input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: #40586c;
+  background: transparent;
+  font-size: 9px;
+}
+.course-search-wrap:focus-within { border-color: #8dc3c0; }
 .course-picker-heading strong { display: block; color: #30485c; font-size: 11px; }
 .course-picker-heading span:not(.selection-count) { display: block; margin-top: 4px; color: #8998a7; font-size: 9px; }
 .selection-count { color: #397a7a; font-size: 10px; font-weight: 700; white-space: nowrap; }
@@ -332,6 +367,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .topbar-brand { display: flex; }
   .brand-symbol { width: 35px; height: 35px; }
   .staff-chip { display: none; }
+  .topbar-settings { display: grid; }
   .install-button { min-height: 36px; padding: 0 11px; font-size: 10px; }
   .install-button svg { width: 14px; }
   .main-content { padding: 18px 16px 34px; }
@@ -358,6 +394,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .field { font-size: 9px; }
   .field input, .field select { min-height: 41px; font-size: 10px; }
   .course-picker { margin-top: 18px; padding: 13px; }
+  .course-search-wrap { width: 100%; }
   .course-options { gap: 6px; }
   .course-option { gap: 6px; padding: 7px 8px; font-size: 9px; }
   .face-registration-note { flex-wrap: wrap; gap: 9px; padding: 11px; }
@@ -375,7 +412,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     inset: auto 0 0;
     z-index: 30;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 4px;
     min-height: 67px;
     padding: 7px 9px calc(7px + env(safe-area-inset-bottom));
