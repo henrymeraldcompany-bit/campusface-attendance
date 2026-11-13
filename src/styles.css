@@ -1,0 +1,98 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #e8eef8;
+  background: #0b1220;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(28, 94, 112, 0.22), transparent 55%),
+    #0b1220;
+}
+
+button, input, select, textarea { font: inherit; }
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.welcome-card {
+  width: min(100%, 620px);
+  padding: clamp(28px, 6vw, 52px);
+  border: 1px solid #26364b;
+  border-radius: 24px;
+  background: rgba(16, 28, 45, 0.92);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 15px;
+  background: #123e4a;
+  color: #74e4e7;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+}
+
+.eyebrow {
+  margin: 28px 0 8px;
+  color: #78dce0;
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+}
+
+.intro {
+  max-width: 460px;
+  margin: 18px 0 26px;
+  color: #b6c4d6;
+  line-height: 1.7;
+}
+
+.status-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #c9f4e4;
+  font-size: 0.92rem;
+  font-weight: 650;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #45d6a0;
+  box-shadow: 0 0 0 4px rgba(69, 214, 160, 0.12);
+}
+
+.notice {
+  margin: 28px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid #26364b;
+  color: #91a2b8;
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
