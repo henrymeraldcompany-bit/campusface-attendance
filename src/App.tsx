@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import {
   ArrowRight,
   BookOpen,
@@ -558,7 +558,7 @@ function AttendancePage({ onComingSoon }: PageActionProps) {
 }
 
 type StatCardProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
   note: string;
@@ -578,7 +578,7 @@ function StatCard({ icon, label, value, note }: StatCardProps) {
 }
 
 type EmptyStateProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   description: string;
 };
