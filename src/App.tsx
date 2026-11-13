@@ -119,6 +119,15 @@ function App() {
               <span className="staff-dot" />
               <span>Lecturer preview</span>
             </div>
+            <button
+              className={mobileMenuOpen ? "topbar-settings active" : "topbar-settings"}
+              type="button"
+              aria-label="Open restricted settings"
+              aria-expanded={mobileMenuOpen}
+              onClick={() => setMobileMenuOpen((open) => !open)}
+            >
+              <Settings size={17} />
+            </button>
             <button className="install-button" onClick={handleInstall} type="button">
               <ArrowRight size={16} />
               <span>Install app</span>
@@ -155,14 +164,6 @@ function App() {
           >
             <ClipboardCheck size={20} />
             <span>Attendance</span>
-          </button>
-          <button
-            className={mobileMenuOpen ? "mobile-nav-item active" : "mobile-nav-item"}
-            onClick={() => setMobileMenuOpen((open) => !open)}
-            type="button"
-          >
-            <Settings size={20} />
-            <span>Settings</span>
           </button>
         </nav>
 
@@ -301,6 +302,7 @@ function RegistrationPage({ onComingSoon }: PageActionProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+  const [courseSearch, setCourseSearch] = useState("");
 
   const toggleCourse = (course: string) => {
     setSelectedCourses((current) =>
@@ -382,8 +384,17 @@ function RegistrationPage({ onComingSoon }: PageActionProps) {
                 </div>
                 <span className="selection-count">{selectedCourses.length} selected</span>
               </div>
+              <label className="course-search-wrap">
+                <Search size={15} />
+                <input
+                  value={courseSearch}
+                  onChange={(event) => setCourseSearch(event.target.value)}
+                  placeholder="Find a course"
+                  aria-label="Search available courses"
+                />
+              </label>
               <div className="course-options">
-                {COURSES.map((course) => (
+                {COURSES.filter((course) => course.toLowerCase().includes(courseSearch.trim().toLowerCase())).map((course) => (
                   <label key={course} className={selectedCourses.includes(course) ? "course-option checked" : "course-option"}>
                     <input
                       type="checkbox"
