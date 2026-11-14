@@ -24,7 +24,7 @@ The workflow is `.github/workflows/backup.yml`.
 Once its two GitHub repository secrets have been configured, it:
 1. Runs every day at 02:15 UTC (03:15 Nigeria time), and can also be started manually from GitHub Actions.
 2. Uses the official Supabase CLI to export database roles, custom schema, and non-managed application data.
-3. Checks that all 12 current CampusFace application tables are present and checks that key application data sections were exported.
+3. Checks that all 12 current CampusFace application tables are present and checks that key application data sections were exported. The validation recognises both quoted and unquoted PostgreSQL identifiers without modifying the actual SQL dumps.
 4. Packages the SQL files and manifest, then encrypts the archive with GPG AES-256.
 5. Decrypts the archive in-memory through a pipe to verify that the password works and the archive is readable.
 6. Uploads only the encrypted archive as a GitHub Actions artifact with 14-day retention. Plaintext SQL files and the passphrase file are removed before upload.
@@ -118,7 +118,7 @@ A recovery rehearsal is only complete when all of the following pass on the isol
 - [x] Inspected the live database inventory, RLS status, Auth account count, Storage bucket count, and Edge Function deployment.
 - [x] Added an encrypted scheduled/manual application-database backup workflow.
 - [x] Added this operational recovery guide.
-- [ ] Add the two required GitHub Actions secrets.
+- [x] Add the two required GitHub Actions secrets and confirm the workflow can validate them and connect to PostgreSQL.
 - [ ] Run the first real backup and confirm the artifact is generated.
 - [ ] Download and retain a private copy of the encrypted artifact.
 - [ ] Establish the separate Auth-user backup/restore method.
