@@ -218,10 +218,6 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
     }
   };
 
-  const showComingSoon = (feature: string) => {
-    setToast(`${feature} will be connected in a later development task.`);
-  };
-
   const switchTab = (tab: MainTab) => {
     setActiveTab(tab);
     setFaceReadinessStudent(null);
@@ -983,7 +979,7 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
 
             <div className="form-footer">
               <p><ShieldCheck size={14} /> Student information is saved securely for authorised staff only.</p>
-              <button type="submit" className="secondary-button" disabled={saving || activeCourseCount === 0 || activeAcademicFaculties.length === 0 || !facultyId || !departmentId || academicLoading}>
+              <button type="submit" className="secondary-button" disabled={saving || activeCourseCount === 0 || activeFaculties.length === 0 || !facultyId || !departmentId || academicLoading}>
                 {saving ? "Saving student..." : "Save student"}
                 <ArrowRight size={16} />
               </button>
