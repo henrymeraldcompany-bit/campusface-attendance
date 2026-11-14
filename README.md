@@ -16,12 +16,14 @@ A lecturer-only university attendance management Progressive Web App (PWA), desi
 - PWA: Vite PWA plugin generates the web app manifest and service worker; browser installation uses the native install prompt.
 - Task 3: Supabase email/password sign-in is connected to the staff profile table. Only active lecturer and administrator profiles can enter the workspace.
 - Task 4: the course catalogue is stored in PostgreSQL, includes the nine starter courses, and is managed by administrators. Active courses are supplied from Supabase to the registration course picker and attendance course selector. RLS permits active staff to read active courses and active administrators to add, rename, activate, or deactivate courses.
-- Student record saving, faculty/department records, camera capture and attendance processing are still under development.
+- Task 5: student registration saves student academic details and course enrolments transactionally in PostgreSQL. Registration numbers are unique without regard to case or surrounding spaces. Student records and enrolments are protected by RLS and are visible only to active authorised staff. Students do not receive Auth accounts.
+- Settings: appearance preferences are presented on a full Settings page for all staff. Administrator-only academic controls are grouped there, and sign-out is placed at the bottom of the Account section.
+- Student record editing/archiving, faculty/department catalogue administration, camera capture and attendance processing are still under development.
 - Staff accounts must be provisioned by a trusted administrator; the app has no public sign-up or student login.
 
 ## Main application areas
 
-The two main workspace tabs are **Registration** and **Attendance**. The **Course catalogue** is available to administrators under the restricted settings menu. Faculty/department management and staff administration will be implemented separately.
+The two main workspace tabs are **Registration** and **Attendance**. A full-page **Settings** area is available to all staff. The **Course catalogue** is available to administrators from Settings. Faculty/department management and staff administration will be implemented separately.
 
 ## Technology
 
