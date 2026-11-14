@@ -409,7 +409,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
             <>
               <div className="preview-notice">
                 <Info size={17} />
-                <span><strong>Staff access verified.</strong> Student records, camera capture and attendance processing will be connected in later tasks.</span>
+                <span><strong>Staff access verified.</strong> Student records and manual attendance are available. Face scanning is not yet implemented and remains disabled.</span>
               </div>
 
               {activeTab === "registration" ? (
