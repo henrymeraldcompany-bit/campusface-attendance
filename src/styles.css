@@ -1867,3 +1867,54 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .records-panel .table-scroll { padding: 0 16px 18px; }
   .student-directory-mobile { display: none !important; }
 }
+
+
+/* Attendance session setup and saved-session list */
+.attendance-form-panel { margin-bottom: 18px; }
+.attendance-form-panel .field select,
+.attendance-form-panel .field input { min-width: 0; }
+.session-rule {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-top: 19px;
+  padding: 13px 14px;
+  border: 1px solid rgba(var(--accent-rgb, 22,123,123), .2);
+  border-radius: 10px;
+  color: var(--teal-dark);
+  background: var(--teal-light);
+}
+.session-rule > svg { flex: 0 0 auto; margin-top: 1px; }
+.session-rule p {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.65;
+}
+.attendance-table { min-width: 760px; }
+.attendance-table th:nth-child(1),
+.attendance-table td:nth-child(1) { width: 190px; }
+.attendance-table th:nth-child(2),
+.attendance-table td:nth-child(2) { width: 150px; }
+.attendance-table th:nth-child(3),
+.attendance-table td:nth-child(3) { width: 150px; }
+.attendance-table th:nth-child(4),
+.attendance-table td:nth-child(4) { width: 130px; }
+.attendance-table th:nth-child(5),
+.attendance-table td:nth-child(5) { width: 120px; }
+.session-time-cell {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+}
+:root[data-theme="dark"] .session-rule {
+  border-color: rgba(var(--accent-rgb, 22,123,123), .28);
+  color: #d2ebe8;
+  background: rgba(var(--accent-rgb, 22,123,123), .14);
+}
+@media (max-width: 760px) {
+  .session-rule { gap: 8px; padding: 10px; }
+  .session-rule p { font-size: 8px; }
+  .attendance-form-panel .form-grid { grid-template-columns: 1fr; }
+  .attendance-table { min-width: 740px; }
+}
