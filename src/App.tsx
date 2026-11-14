@@ -15,6 +15,9 @@ import {
   GraduationCap,
   Info,
   Lock,
+  Moon,
+  Palette,
+  Sun,
   Plus,
   Search,
   Settings,
@@ -92,6 +95,23 @@ function App() {
       return "#167b7b";
     }
   });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const { r, g, b } = hexToRgb(accentColor);
+    root.dataset.theme = theme;
+    root.style.setProperty("--accent", accentColor);
+    root.style.setProperty("--accent-dark", darkenHex(accentColor));
+    root.style.setProperty("--accent-soft", `rgba(${r}, ${g}, ${b}, .11)`);
+    root.style.setProperty("--accent-rgb", `${r}, ${g}, ${b}`);
+
+    try {
+      localStorage.setItem("campusface-theme", theme);
+      localStorage.setItem("campusface-accent", accentColor);
+    } catch {
+      // Appearance remains active for this visit if browser storage is unavailable.
+    }
+  }, [theme, accentColor]);
 
   useEffect(() => {
     const captureInstallPrompt = (event: Event) => {
