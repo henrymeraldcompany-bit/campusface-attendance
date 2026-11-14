@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import {
   Building2,
   Check,
@@ -77,7 +78,7 @@ export function AcademicStructurePage({ onBack }: Props) {
     return error.message || "The change could not be saved. Please try again.";
   };
 
-  const addFaculty = async (event: React.FormEvent<HTMLFormElement>) => {
+  const addFaculty = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (addingFaculty) return;
     const name = facultyName.trim();
