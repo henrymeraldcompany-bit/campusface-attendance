@@ -81,18 +81,22 @@ jobs:
             fi
           done
 
-          # Confirm key CampusFace tables appear in the schema and data exports.
+          # pg_dump may quote SQL identifiers (for example, "public"."faculties").
+          # Remove identifier quotes only in the validation stream so both quoted and
+          # unquoted pg_dump output formats are recognised. The original dumps stay intact.
           for table in faculties departments courses staff_profiles students student_courses \
                        lecturer_course_assignments attendance_sessions session_enrolment_snapshots \
                        attendance_records staff_management_audit biometric_processing_gate; do
-            if ! grep -Eq "^CREATE TABLE (IF NOT EXISTS )?public\\.$table[[:space:]]" "$BACKUP_DIR/schema.sql"; then
+            if ! sed 's/"//g' "$BACKUP_DIR/schema.sql" \
+              | grep -Eiq "^[[:space:]]*CREATE TABLE([[:space:]]+IF NOT EXISTS)?[[:space:]]+public\\.$table([[:space:]]|\\()"; then
               echo "::error::Expected CampusFace table is missing from schema dump: $table"
               exit 1
             fi
           done
 
           for table in staff_profiles courses students attendance_sessions attendance_records; do
-            if ! grep -Eq "^COPY public\\.$table[[:space:]]" "$BACKUP_DIR/data.sql"; then
+            if ! sed 's/"//g' "$BACKUP_DIR/data.sql" \
+              | grep -Eiq "^[[:space:]]*COPY[[:space:]]+public\\.$table([[:space:]]|\\()"; then
               echo "::error::Expected CampusFace data section is missing: $table"
               exit 1
             fi
