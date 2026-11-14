@@ -55,13 +55,13 @@ export function AuthGate({ children }: AuthGateProps) {
   const [profile, setProfile] = useState<StaffProfile | null>(null);
   const [message, setMessage] = useState("");
   const [recoveryMode, setRecoveryMode] = useState(false);
+  const [inviteSetupMode, setInviteSetupMode] = useState(false);
   const [verificationAttempt, setVerificationAttempt] = useState(0);
 
   // Depend on the account identity, not the entire session object. Supabase
   // refreshes access tokens periodically; that should not send staff back
   // through the profile-verification loading screen.
   const userId = session?.user?.id ?? null;
-  const inviteSetupMode = session?.user?.user_metadata?.campusface_invitation_pending === true;
   const inviteName = typeof session?.user?.user_metadata?.full_name === "string"
     ? session.user.user_metadata.full_name
     : profile?.full_name ?? "";
@@ -86,8 +86,13 @@ export function AuthGate({ children }: AuthGateProps) {
         setStatus("recovery");
       }
 
+      if (nextSession?.user?.user_metadata?.campusface_invitation_pending === true) {
+        setInviteSetupMode(true);
+      }
+
       if (event === "SIGNED_OUT" || (event === "INITIAL_SESSION" && !nextSession)) {
         setRecoveryMode(false);
+        setInviteSetupMode(false);
         setProfile(null);
         setMessage("");
         setStatus("signed-out");
