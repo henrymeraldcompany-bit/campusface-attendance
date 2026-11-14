@@ -2,9 +2,11 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import {
   Eye,
+  BookOpen,
   EyeOff,
   GraduationCap,
   LogIn,
+  Mail,
   ShieldCheck,
 } from "lucide-react";
 
@@ -15,7 +17,9 @@ type LoginScreenProps = {
   recoveryMode: boolean;
   inviteSetupMode: boolean;
   inviteName: string;
-  inviteCourseNames: string;
+  inviteEmail: string;
+  inviteRoleLabel: string;
+  inviteCourseNames: string[];
   onUpdatePassword: (password: string) => Promise<void>;
 };
 
@@ -26,6 +30,8 @@ export function LoginScreen({
   recoveryMode,
   inviteSetupMode,
   inviteName,
+  inviteEmail,
+  inviteRoleLabel,
   inviteCourseNames,
   onUpdatePassword,
 }: LoginScreenProps) {
@@ -37,6 +43,9 @@ export function LoginScreen({
   const [forgotMode, setForgotMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formMessage, setFormMessage] = useState("");
+  const visibleCourseNames = Array.from(
+    new Set(inviteCourseNames.map((name) => name.trim()).filter(Boolean)),
+  );
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -91,7 +100,7 @@ export function LoginScreen({
         : "Sign in to CampusFace";
 
   const description = inviteSetupMode
-    ? `Welcome, ${inviteName || "lecturer"}. Your assigned courses: ${inviteCourseNames || "Your administrator will confirm your course list"}. Create a password to finish setting up your account.`
+    ? "Review your invitation details, then create a secure password to finish setting up your CampusFace account."
     : recoveryMode
       ? "Create a new password for your CampusFace staff account."
       : forgotMode
@@ -107,6 +116,56 @@ export function LoginScreen({
         <p className="auth-eyebrow">LECTURER & ADMINISTRATOR PORTAL</p>
         <h1 id="auth-title">{heading}</h1>
         <p className="auth-description">{description}</p>
+
+        {inviteSetupMode && (
+          <section className="auth-invite-summary" aria-label="Invitation details">
+            <div className="auth-invite-summary-heading">
+              <div className="auth-invite-summary-icon"><ShieldCheck size={17} /></div>
+              <div>
+                <strong>Your CampusFace invitation</strong>
+                <p>These details were provided by your administrator.</p>
+              </div>
+            </div>
+
+            <div className="auth-invite-details">
+              <div className="auth-invite-detail">
+                <span>YOUR NAME</span>
+                <strong>{inviteName || "Staff member"}</strong>
+              </div>
+              <div className="auth-invite-detail">
+                <span>INVITED EMAIL</span>
+                <strong>{inviteEmail || "Email linked to this invitation"}</strong>
+              </div>
+              <div className="auth-invite-detail">
+                <span>ACCOUNT ROLE</span>
+                <strong>{inviteRoleLabel || "Staff member"}</strong>
+              </div>
+            </div>
+
+            <div className="auth-invite-courses">
+              <div className="auth-invite-courses-heading">
+                <span><BookOpen size={15} /> Courses assigned to you</span>
+                <small>{visibleCourseNames.length}</small>
+              </div>
+              {visibleCourseNames.length > 0 ? (
+                <ul>
+                  {visibleCourseNames.map((courseName) => (
+                    <li key={courseName}>{courseName}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="auth-invite-no-courses">
+                  No individual course assignment is attached to this invitation.
+                </p>
+              )}
+            </div>
+
+            <p className="auth-invite-summary-note">
+              Your lecturer workspace will show the courses assigned to your account.
+              Contact your administrator if any course is missing.
+            </p>
+          </section>
+        )}
 
         {(message || formMessage) && (
           <div className="auth-message" role="alert">

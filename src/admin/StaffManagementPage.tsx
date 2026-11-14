@@ -198,7 +198,38 @@ export function StaffManagementPage({ onBack }: Props) {
               )}
             </div>
           )}
-          <button className="primary-button" type="submit" disabled={inviting || coursesLoading || fullName.trim().length < 2 || !email.includes("@") || (role === "lecturer" && (courses.length === 0 || selectedCourseIds.length === 0))}><Mail size={16}/>{inviting ? "Sending invitation..." : "Send invitation link"}</button>
+          {role === "lecturer" && (
+            <div className="staff-invite-preview" aria-live="polite">
+              <div className="staff-invite-preview-heading">
+                <strong>Invitation preview</strong>
+                <span>The lecturer will see these details after opening the invitation link.</span>
+              </div>
+              <div className="staff-invite-preview-row">
+                <span>Lecturer name</span>
+                <strong>{fullName.trim() || "Name not entered yet"}</strong>
+              </div>
+              <div className="staff-invite-preview-row">
+                <span>Email address</span>
+                <strong>{email.trim() || "Email not entered yet"}</strong>
+              </div>
+              <div className="staff-invite-preview-courses">
+                <span>Courses to assign</span>
+                {courses.filter((course) => selectedCourseIds.includes(course.id)).length > 0 ? (
+                  <div>
+                    {courses
+                      .filter((course) => selectedCourseIds.includes(course.id))
+                      .map((course) => <small key={course.id}>{course.name}</small>)}
+                  </div>
+                ) : (
+                  <p>Select at least one course before sending the lecturer invitation.</p>
+                )}
+              </div>
+            </div>
+          )}
+          <button className="primary-button" type="submit" disabled={inviting || coursesLoading || fullName.trim().length < 2 || !email.includes("@") || (role === "lecturer" && (courses.length === 0 || selectedCourseIds.length === 0))}>
+            <Mail size={16}/>
+            {inviting ? "Sending invitation..." : role === "lecturer" ? "Send lecturer invitation" : "Send administrator invitation"}
+          </button>
         </form>
         <p className="staff-admin-note">Only administrators can invite staff. A lecturer receives the selected courses as part of the invitation process and cannot add courses to their own account. Invitees create their own password through the secure email link.</p>
       </section>

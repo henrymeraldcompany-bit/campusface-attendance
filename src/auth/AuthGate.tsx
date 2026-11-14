@@ -65,9 +65,16 @@ export function AuthGate({ children }: AuthGateProps) {
   const inviteName = typeof session?.user?.user_metadata?.full_name === "string"
     ? session.user.user_metadata.full_name
     : profile?.full_name ?? "";
-  const inviteCourseNames = typeof session?.user?.user_metadata?.campusface_course_names === "string"
-    ? session.user.user_metadata.campusface_course_names
-    : "";
+  const inviteCourseMetadata = session?.user?.user_metadata?.campusface_course_names;
+  const inviteCourseNames = Array.isArray(inviteCourseMetadata)
+    ? inviteCourseMetadata.filter((name): name is string => typeof name === "string").map((name) => name.trim()).filter(Boolean)
+    : typeof inviteCourseMetadata === "string"
+      ? inviteCourseMetadata.split(",").map((name) => name.trim()).filter(Boolean)
+      : [];
+  const inviteEmail = session?.user?.email ?? "";
+  const inviteRoleLabel = typeof session?.user?.user_metadata?.campusface_role_label === "string"
+    ? session.user.user_metadata.campusface_role_label
+    : "Staff member";
 
   useEffect(() => {
     let mounted = true;
@@ -86,9 +93,9 @@ export function AuthGate({ children }: AuthGateProps) {
         setStatus("recovery");
       }
 
-      if (nextSession?.user?.user_metadata?.campusface_invitation_pending === true) {
-        setInviteSetupMode(true);
-      }
+      setInviteSetupMode(
+        nextSession?.user?.user_metadata?.campusface_invitation_pending === true,
+      );
 
       if (event === "SIGNED_OUT" || (event === "INITIAL_SESSION" && !nextSession)) {
         setRecoveryMode(false);
@@ -124,6 +131,9 @@ export function AuthGate({ children }: AuthGateProps) {
           return;
         }
 
+        setInviteSetupMode(
+          result.data.session.user.user_metadata?.campusface_invitation_pending === true,
+        );
         setSession(result.data.session);
       } catch {
         if (!mounted || authEventReceived) return;
@@ -313,6 +323,7 @@ export function AuthGate({ children }: AuthGateProps) {
 
       const { error: signOutError } = await supabase.auth.signOut();
       setRecoveryMode(false);
+      setInviteSetupMode(false);
       setSession(null);
       setProfile(null);
       setStatus("signed-out");
@@ -340,6 +351,7 @@ export function AuthGate({ children }: AuthGateProps) {
     setSession(null);
     setProfile(null);
     setRecoveryMode(false);
+    setInviteSetupMode(false);
     setMessage("");
     setStatus("signed-out");
   };
@@ -353,6 +365,8 @@ export function AuthGate({ children }: AuthGateProps) {
         recoveryMode={false}
         inviteSetupMode
         inviteName={inviteName}
+        inviteEmail={inviteEmail}
+        inviteRoleLabel={inviteRoleLabel}
         inviteCourseNames={inviteCourseNames}
         onUpdatePassword={handleUpdatePassword}
       />
@@ -409,7 +423,9 @@ export function AuthGate({ children }: AuthGateProps) {
       recoveryMode={recoveryMode}
       inviteSetupMode={false}
       inviteName=""
-      inviteCourseNames=""
+      inviteEmail=""
+      inviteRoleLabel=""
+      inviteCourseNames={[]}
       onUpdatePassword={handleUpdatePassword}
     />
   );
