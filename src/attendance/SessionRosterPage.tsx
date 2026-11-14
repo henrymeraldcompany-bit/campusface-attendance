@@ -6,7 +6,9 @@ import {
   Clock,
   Search,
   ShieldAlert,
+  ShieldCheck,
   Users,
+  X,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -30,6 +32,12 @@ type SnapshotStudent = {
   snapshotted_at: string;
 };
 
+type AttendanceMark = {
+  student_id: string;
+  marked_at: string;
+  verification_method: "manual";
+};
+
 type Props = {
   session: SessionRosterSummary;
   onBack: () => void;
@@ -44,15 +52,28 @@ function formatDate(value: string) {
   }).format(new Date(year, month - 1, day));
 }
 
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat("en-NG", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Africa/Lagos",
+  }).format(new Date(value));
+}
+
 export function SessionRosterPage({ session, onBack }: Props) {
   const [students, setStudents] = useState<SnapshotStudent[]>([]);
+  const [attendanceByStudent, setAttendanceByStudent] = useState<Record<string, AttendanceMark>>({});
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [captureEnabled, setCaptureEnabled] = useState(false);
   const [gateChecked, setGateChecked] = useState(false);
-
-
+  const [pendingStudent, setPendingStudent] = useState<SnapshotStudent | null>(null);
+  const [marking, setMarking] = useState(false);
+  const [actionMessage, setActionMessage] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -61,7 +82,7 @@ export function SessionRosterPage({ session, onBack }: Props) {
       setLoading(true);
       setLoadError("");
 
-      const [rosterResult, gateResult] = await Promise.all([
+      const [rosterResult, gateResult, attendanceResult] = await Promise.all([
         supabase
           .from("session_enrolment_snapshots")
           .select("student_id, student_full_name, registration_number, gender, faculty, department, snapshotted_at")
@@ -72,6 +93,10 @@ export function SessionRosterPage({ session, onBack }: Props) {
           .select("capture_enabled")
           .eq("id", 1)
           .maybeSingle(),
+        supabase
+          .from("attendance_records")
+          .select("student_id, marked_at, verification_method")
+          .eq("session_id", session.id),
       ]);
 
       if (!active) return;
@@ -83,6 +108,18 @@ export function SessionRosterPage({ session, onBack }: Props) {
         setStudents((rosterResult.data ?? []) as SnapshotStudent[]);
       }
 
+      if (attendanceResult.error) {
+        setAttendanceByStudent({});
+        setLoadError("The roster loaded, but attendance marks could not be verified. Retry before marking anyone.");
+      } else {
+        const mapped: Record<string, AttendanceMark> = {};
+        (attendanceResult.data ?? []).forEach((record) => {
+          mapped[record.student_id] = record as AttendanceMark;
+        });
+        setAttendanceByStudent(mapped);
+      }
+
+      // A missing or unreadable biometric gate must always fail closed.
       setCaptureEnabled(Boolean(!gateResult.error && gateResult.data?.capture_enabled));
       setGateChecked(!gateResult.error && Boolean(gateResult.data));
       setLoading(false);
@@ -92,7 +129,7 @@ export function SessionRosterPage({ session, onBack }: Props) {
     return () => {
       active = false;
     };
-  }, [session.id]);
+  }, [session.id, reloadKey]);
 
   const normalizedSearch = search.trim().toLowerCase();
   const filteredStudents = useMemo(() => {
@@ -106,6 +143,55 @@ export function SessionRosterPage({ session, onBack }: Props) {
       ].some((value) => value.toLowerCase().includes(normalizedSearch)),
     );
   }, [students, normalizedSearch]);
+
+  const presentCount = Object.keys(attendanceByStudent).length;
+  const absentCount = Math.max(students.length - presentCount, 0);
+
+  const confirmMarkPresent = async () => {
+    if (!pendingStudent || marking) return;
+    if (session.status !== "active") {
+      setActionError("This session has ended. No further attendance marks can be added.");
+      setPendingStudent(null);
+      return;
+    }
+
+    setMarking(true);
+    setActionMessage("");
+    setActionError("");
+
+    try {
+      const { data, error } = await supabase.rpc("mark_student_present", {
+        p_session_id: session.id,
+        p_student_id: pendingStudent.student_id,
+      });
+
+      if (error) {
+        if (error.code === "42501") {
+          setActionError("Your staff account is not authorised to mark this session.");
+        } else if (error.code === "22023") {
+          setActionError(error.message || "This student cannot be marked present in this session.");
+        } else if (error.code === "23505") {
+          setActionError("This student has already been marked present.");
+        } else {
+          setActionError("Attendance could not be saved. Check your connection and retry.");
+        }
+        return;
+      }
+
+      if (data === "already_recorded") {
+        setActionMessage(`${pendingStudent.student_full_name} was already marked present. No duplicate was created.`);
+      } else {
+        setActionMessage(`${pendingStudent.student_full_name} marked present after manual identity verification.`);
+      }
+
+      setPendingStudent(null);
+      setReloadKey((value) => value + 1);
+    } catch {
+      setActionError("Attendance could not be saved. Check your connection and retry.");
+    } finally {
+      setMarking(false);
+    }
+  };
 
   return (
     <>
@@ -129,12 +215,18 @@ export function SessionRosterPage({ session, onBack }: Props) {
         </div>
         <div className="session-roster-count">
           <Users size={19} />
-          <strong>{session.snapshot_count}</strong>
+          <strong>{students.length || session.snapshot_count}</strong>
           <span>Eligible students</span>
         </div>
         <span className={session.status === "active" ? "student-status-pill active" : "student-status-pill archived"}>
           {session.status === "active" ? "Active session" : "Ended session"}
         </span>
+      </section>
+
+      <section className="stats-grid session-attendance-stats" aria-label="Session attendance totals">
+        <StatCard icon={<Users size={18} />} label="Eligible" value={String(students.length)} note="Fixed session snapshot" />
+        <StatCard icon={<CheckCircle2 size={18} />} label="Present" value={String(presentCount)} note="Manually verified" />
+        <StatCard icon={<Clock size={18} />} label="Not yet marked" value={String(absentCount)} note="Pending review, not final absence" />
       </section>
 
       <section className="panel session-identification-panel">
@@ -159,7 +251,7 @@ export function SessionRosterPage({ session, onBack }: Props) {
 
         <div className="session-snapshot-note">
           <CheckCircle2 size={17} />
-          <span>Snapshot preserved. Student edits or course-enrolment changes made after this session started will not change this list.</span>
+          <span>Snapshot preserved. Student edits or course-enrolment changes made after this session started will not change this class's eligibility list.</span>
         </div>
 
         {!gateChecked || !captureEnabled ? (
@@ -169,7 +261,7 @@ export function SessionRosterPage({ session, onBack }: Props) {
               <strong>Face scanning is not enabled</strong>
               <p>
                 {gateChecked
-                  ? "The biometric-processing approval gate is still locked. This page will not open the camera or collect face images."
+                  ? "The biometric-processing approval gate is still locked. This page will not open the camera or collect face images. Use manual identity verification instead."
                   : "The biometric approval status could not be verified. Camera access remains disabled as a precaution."}
               </p>
             </div>
@@ -179,13 +271,23 @@ export function SessionRosterPage({ session, onBack }: Props) {
           <div className="face-scan-locked-notice">
             <div className="face-scan-locked-icon"><Camera size={19} /></div>
             <div>
-              <strong>Camera scanner integration is not part of this release</strong>
-              <p>The approval gate is enabled, but camera capture and recognition still require a separately reviewed scanner implementation.</p>
+              <strong>Camera scanner integration is not installed</strong>
+              <p>The biometric gate is enabled, but camera capture and recognition still require a separately reviewed scanner implementation.</p>
             </div>
             <span className="face-gate-pill blocked"><Clock size={12} /> Not installed</span>
           </div>
         )}
       </section>
+
+      {(actionMessage || actionError) && (
+        <div className="student-form-message" role={actionError ? "alert" : "status"}>
+          {actionError ? <ShieldAlert size={16} /> : <CheckCircle2 size={16} />}
+          <span>{actionError || actionMessage}</span>
+          <button type="button" aria-label="Dismiss message" onClick={() => { setActionMessage(""); setActionError(""); }}>
+            <X size={15} />
+          </button>
+        </div>
+      )}
 
       <section className="panel records-panel session-roster-list-panel">
         <div className="records-toolbar">
@@ -202,17 +304,35 @@ export function SessionRosterPage({ session, onBack }: Props) {
           <div className="student-form-message" role="alert">{loadError}</div>
         ) : filteredStudents.length ? (
           <div className="session-roster-list">
-            {filteredStudents.map((student, index) => (
-              <article className="session-roster-student" key={student.student_id}>
-                <span className="session-roster-number">{String(index + 1).padStart(2, "0")}</span>
-                <div className="session-roster-student-main">
-                  <strong>{student.student_full_name}</strong>
-                  <span>{student.registration_number}</span>
-                  <small>{student.faculty} · {student.department}</small>
-                </div>
-                <span className="session-roster-face-status">Face profile not registered</span>
-              </article>
-            ))}
+            {filteredStudents.map((student, index) => {
+              const mark = attendanceByStudent[student.student_id];
+              return (
+                <article className={mark ? "session-roster-student is-present" : "session-roster-student"} key={student.student_id}>
+                  <span className="session-roster-number">{String(index + 1).padStart(2, "0")}</span>
+                  <div className="session-roster-student-main">
+                    <strong>{student.student_full_name}</strong>
+                    <span>{student.registration_number}</span>
+                    <small>{student.faculty} · {student.department}</small>
+                  </div>
+                  {mark ? (
+                    <span className="session-attendance-mark-present">
+                      <CheckCircle2 size={14} />
+                      Present
+                      <small>{formatTime(mark.marked_at)}</small>
+                    </span>
+                  ) : (
+                    <button
+                      className="session-mark-present-button"
+                      type="button"
+                      onClick={() => { setPendingStudent(student); setActionError(""); setActionMessage(""); }}
+                      disabled={session.status !== "active" || loading || Boolean(loadError)}
+                    >
+                      Mark present
+                    </button>
+                  )}
+                </article>
+              );
+            })}
           </div>
         ) : (
           <div className="session-roster-empty">
@@ -222,6 +342,27 @@ export function SessionRosterPage({ session, onBack }: Props) {
           </div>
         )}
       </section>
+
+      {pendingStudent && (
+        <div className="confirmation-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget && !marking) setPendingStudent(null);
+        }}>
+          <section className="confirmation-dialog" role="alertdialog" aria-modal="true" aria-labelledby="mark-present-title" aria-describedby="mark-present-description">
+            <div className="confirmation-icon"><ShieldCheck size={22} /></div>
+            <h2 id="mark-present-title">Confirm student identity</h2>
+            <p id="mark-present-description">
+              Confirm that you have checked <strong>{pendingStudent.student_full_name}</strong> and their registration number <strong>{pendingStudent.registration_number}</strong> against an approved university identity document and verified that they are physically present.
+            </p>
+            <div className="confirmation-actions">
+              <button className="course-admin-text-button" type="button" onClick={() => setPendingStudent(null)} disabled={marking}>Cancel</button>
+              <button className="primary-button" type="button" onClick={() => void confirmMarkPresent()} disabled={marking}>
+                <CheckCircle2 size={15} />
+                {marking ? "Saving..." : "Confirm present"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </>
   );
 }
