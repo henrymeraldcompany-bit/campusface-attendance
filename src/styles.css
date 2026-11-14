@@ -2404,3 +2404,102 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .session-attendance-mark-present { min-width: 76px; font-size: 8px; }
   .session-mark-present-button { min-height: 32px; padding: 0 8px; font-size: 8px; }
 }
+
+
+/* Task 11 — End Class and final attendance report */
+.session-roster-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.session-end-button { white-space: nowrap; }
+.session-final-report { margin-bottom: 16px; }
+.session-final-report .panel-heading > svg { flex: 0 0 auto; color: var(--teal); }
+.session-final-report-layout {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 5px 2px 1px;
+}
+.session-final-rate {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+.session-final-rate strong {
+  color: var(--teal-dark);
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -1px;
+}
+.session-final-rate span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+.session-final-report-details {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 9px;
+}
+.session-final-report-details p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 12px;
+}
+.session-final-report-details p strong { font-weight: 850; }
+.session-final-report-details p span { padding: 0 5px; color: var(--muted); }
+.session-final-report-details small { color: var(--muted); font-size: 8px; line-height: 1.5; }
+.session-roster-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+.session-roster-filters button {
+  min-height: 29px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 8px;
+  font-weight: 750;
+}
+.session-roster-filters button.active {
+  border-color: rgba(var(--accent-rgb, 22,123,123), .35);
+  color: var(--teal-dark);
+  background: var(--teal-light);
+}
+.session-attendance-mark-absent {
+  display: grid;
+  min-width: 90px;
+  justify-items: end;
+  gap: 3px;
+  color: #a34b42;
+  font-size: 9px;
+  font-weight: 800;
+}
+.session-attendance-mark-absent small {
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 550;
+  text-align: right;
+}
+:root[data-theme="dark"] .session-final-rate strong { color: #a6e5df; }
+:root[data-theme="dark"] .session-roster-filters button.active {
+  border-color: rgba(var(--accent-rgb, 22,123,123), .42);
+  color: #d2ebe8;
+}
+:root[data-theme="dark"] .session-attendance-mark-absent { color: #f2a9a0; }
+@media (max-width: 760px) {
+  .session-roster-heading-actions { width: 100%; justify-content: flex-start; }
+  .session-final-report-layout { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .session-roster-filters { justify-content: flex-start; }
+  .session-attendance-mark-absent { min-width: 76px; font-size: 8px; }
+}
