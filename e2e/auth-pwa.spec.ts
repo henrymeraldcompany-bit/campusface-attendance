@@ -13,7 +13,7 @@ test.describe("CampusFace staff entry", () => {
       "type",
       "email",
     );
-    await expect(page.getByLabel("Password")).toHaveAttribute(
+    await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute(
       "type",
       "password",
     );
@@ -29,7 +29,7 @@ test.describe("CampusFace staff entry", () => {
   });
 
   test("allows the password visibility control to show and hide the entered value", async ({ page }) => {
-    const password = page.getByLabel("Password");
+    const password = page.getByLabel("Password", { exact: true });
     await password.fill("ExampleOnly-NotARealAccount-123");
 
     await page.getByRole("button", { name: "Show password" }).click();
