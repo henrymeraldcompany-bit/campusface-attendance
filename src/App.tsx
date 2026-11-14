@@ -963,6 +963,7 @@ function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
                   <th>REGISTRATION NUMBER</th>
                   <th>FACULTY / DEPARTMENT</th>
                   <th>COURSES</th>
+                  <th>FACE PROFILE</th>
                   <th>STATUS</th>
                   <th>ACTIONS</th>
                 </tr>
@@ -978,6 +979,7 @@ function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
                       <td>{student.registration_number}</td>
                       <td><span className="student-academic-cell">{student.faculty}<small>{student.department}</small></span></td>
                       <td>{courseNames.length ? courseNames.join(", ") : "No course listed"}</td>
+                      <td><span className="student-face-pending">Not registered</span></td>
                       <td><span className={student.is_active ? "student-status-pill active" : "student-status-pill archived"}>{student.is_active ? "Active" : "Archived"}</span></td>
                       <td>
                         <div className="student-row-actions">
