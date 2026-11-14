@@ -178,10 +178,11 @@ export function LoginScreen({
                 />
               </label>
 
-              <label className="auth-field">
-                <span>Password</span>
+              <div className="auth-field">
+                <label htmlFor="staff-password">Password</label>
                 <span className="auth-password-control">
                   <input
+                    id="staff-password"
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
@@ -200,7 +201,7 @@ export function LoginScreen({
                     {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
                 </span>
-              </label>
+              </div>
 
               <button className="auth-submit" type="submit" disabled={submitting}>
                 <LogIn size={17} />
