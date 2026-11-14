@@ -1,0 +1,85 @@
+name: Build CampusFace Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: campusface-android
+  cancel-in-progress: true
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build bundled web application
+        run: npm run build
+
+      - name: Generate native Android project
+        run: npx cap add android
+
+      - name: Generate Android icons and splash assets
+        run: npx capacitor-assets generate --android --iconBackgroundColor "#102336" --splashBackgroundColor "#f4f7fa"
+
+      - name: Sync bundled web files into Android app
+        run: npx cap sync android
+
+      - name: Build installable Android APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - name: Prepare APK
+        run: |
+          mkdir -p release
+          cp android/app/build/outputs/apk/debug/app-debug.apk release/CampusFace-Attendance.apk
+          test -s release/CampusFace-Attendance.apk
+          ls -lh release/CampusFace-Attendance.apk
+
+      - name: Upload APK build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CampusFace-Attendance-APK
+          path: release/CampusFace-Attendance.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish downloadable APK release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: campusface-android-build-${{ github.run_number }}
+          name: CampusFace Android build ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          body: |
+            Installable Android APK for CampusFace Attendance.
+
+            Download **CampusFace-Attendance.apk**, open it on an Android device, and follow Android's installation confirmation.
+            This automated build is debug-signed and intended for direct testing and sideloaded distribution.
+          files: release/CampusFace-Attendance.apk
+          draft: false
+          prerelease: false
+          make_latest: true
+          fail_on_unmatched_files: true
