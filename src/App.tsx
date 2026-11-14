@@ -57,6 +57,18 @@ function darkenHex(hex: string, amount = 0.18) {
     .map((channel) => Math.round(channel * (1 - amount)).toString(16).padStart(2, "0"))
     .join("");
 }
+
+function isRunningAsInstalledApp() {
+  if (typeof window === "undefined") return false;
+
+  const displayModes = ["standalone", "fullscreen", "minimal-ui"];
+  const launchedAsPwa = displayModes.some((mode) =>
+    window.matchMedia(`(display-mode: ${mode})`).matches
+  );
+  const iosStandalone = (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+  return launchedAsPwa || iosStandalone;
+}
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform?: string }>;
@@ -78,6 +90,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<MainTab>("registration");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(isRunningAsInstalledApp);
   const [toast, setToast] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>(() => {
@@ -114,13 +127,35 @@ function App() {
   }, [theme, accentColor]);
 
   useEffect(() => {
+    const updateInstalledState = () => {
+      setIsInstalled(isRunningAsInstalledApp());
+    };
+
     const captureInstallPrompt = (event: Event) => {
       event.preventDefault();
+      setIsInstalled(false);
       setInstallPrompt(event as BeforeInstallPromptEvent);
     };
 
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    };
+
+    const displayModeQueries = ["standalone", "fullscreen", "minimal-ui"].map((mode) =>
+      window.matchMedia(`(display-mode: ${mode})`)
+    );
+
+    updateInstalledState();
     window.addEventListener("beforeinstallprompt", captureInstallPrompt);
-    return () => window.removeEventListener("beforeinstallprompt", captureInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+    displayModeQueries.forEach((query) => query.addEventListener("change", updateInstalledState));
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", captureInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+      displayModeQueries.forEach((query) => query.removeEventListener("change", updateInstalledState));
+    };
   }, []);
 
   useEffect(() => {
@@ -195,10 +230,12 @@ function App() {
             >
               <Settings size={17} />
             </button>
-            <button className="install-button" onClick={handleInstall} type="button">
-              <ArrowRight size={16} />
-              <span>Install app</span>
-            </button>
+            {!isInstalled && (
+              <button className="install-button" onClick={handleInstall} type="button">
+                <ArrowRight size={16} />
+                <span>Install app</span>
+              </button>
+            )}
           </div>
         </header>
 
