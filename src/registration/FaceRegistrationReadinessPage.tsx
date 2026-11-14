@@ -30,13 +30,13 @@ type Props = {
 };
 
 const REQUIREMENTS = [
-  "Written institutional approval for the proposed face-recognition use",
-  "Completed and reviewed Data Protection Impact Assessment (DPIA)",
-  "Documented lawful basis and specific purpose for processing",
-  "Clear student information and a voluntary, recorded consent process",
-  "Retention, access, deletion and withdrawal procedures",
-  "Security review covering storage, access and breach response",
-  "A practical non-biometric attendance alternative",
+  { label: "Written institutional approval for the proposed face-recognition use", field: "institutional_approval_reference" },
+  { label: "Completed and reviewed Data Protection Impact Assessment (DPIA)", field: "dpia_reference" },
+  { label: "Documented lawful basis and specific purpose for processing", field: "lawful_basis_reference" },
+  { label: "Clear student information and a voluntary, recorded consent process", field: "consent_process_reference" },
+  { label: "Retention, access, deletion and withdrawal procedures", field: "retention_policy_reference" },
+  { label: "Security review covering storage, access and breach response", field: "security_review_reference" },
+  { label: "A practical non-biometric attendance alternative", field: "alternative_process_reference" },
 ] as const;
 
 export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
@@ -139,13 +139,18 @@ export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
           <FileCheck2 size={21} />
         </div>
         <div className="face-requirements-list">
-          {REQUIREMENTS.map((requirement, index) => (
-            <div className="face-requirement-row" key={requirement}>
-              <span className="face-requirement-number">{index + 1}</span>
-              <span>{requirement}</span>
-              <span className="face-requirement-state">Not verified</span>
-            </div>
-          ))}
+          {REQUIREMENTS.map((requirement, index) => {
+            const reference = gate?.[requirement.field];
+            return (
+              <div className="face-requirement-row" key={requirement.field}>
+                <span className="face-requirement-number">{index + 1}</span>
+                <span>{requirement.label}</span>
+                <span className={reference ? "face-requirement-state recorded" : "face-requirement-state"}>
+                  {reference ? "Reference recorded" : "Not recorded"}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </section>
 
