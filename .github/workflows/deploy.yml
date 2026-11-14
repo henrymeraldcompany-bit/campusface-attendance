@@ -1,4 +1,4 @@
-name: Deploy CampusFace PWA
+name: Deploy CampusFace Web App
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build PWA
+      - name: Build web app
         run: npm run build
 
       - name: Configure GitHub Pages
@@ -40,11 +40,11 @@ jobs:
         with:
           enablement: true
 
-      - name: Upload Pages artifact
+      - name: Upload web artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy web app
         id: deployment
         uses: actions/deploy-pages@v4
