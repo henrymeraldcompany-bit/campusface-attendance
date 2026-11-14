@@ -412,7 +412,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
               {activeTab === "registration" ? (
                 <RegistrationPage courses={courses} onOpenFaceReadiness={openFaceReadiness} />
               ) : (
-                <AttendancePage onComingSoon={showComingSoon} courses={activeCourses} />
+                <AttendancePage courses={activeCourses} />
               )}
             </>
           )}
@@ -1071,13 +1071,118 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
   );
 }
 
-function AttendancePage({ onComingSoon, courses }: PageActionProps) {
-  const [formOpen, setFormOpen] = useState(false);
+type AttendanceSessionRecord = {
+  id: string;
+  course_id: string;
+  class_title: string;
+  class_date: string;
+  start_time: string;
+  started_at: string;
+  status: "active" | "ended";
+  courses: { name: string } | null;
+  session_enrolment_snapshots: Array<{ count: number }>;
+};
 
-  const preventPreviewSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    onComingSoon("Attendance session creation");
+function AttendancePage({ courses }: { courses: CourseRecord[] }) {
+  const [formOpen, setFormOpen] = useState(false);
+  const [sessions, setSessions] = useState<AttendanceSessionRecord[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [courseId, setCourseId] = useState("");
+  const [classTitle, setClassTitle] = useState("");
+  const [classDate, setClassDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+
+  const loadSessions = async () => {
+    setSessionsLoading(true);
+    const { data, error } = await supabase
+      .from("attendance_sessions")
+      .select("id, course_id, class_title, class_date, start_time, started_at, status, courses(name), session_enrolment_snapshots(count)")
+      .order("started_at", { ascending: false })
+      .limit(40);
+
+    if (error) {
+      setSessions([]);
+      setMessage("Attendance sessions could not be loaded. Check your staff access and connection.");
+    } else {
+      setSessions((data ?? []) as unknown as AttendanceSessionRecord[]);
+    }
+    setSessionsLoading(false);
   };
+
+  useEffect(() => {
+    void loadSessions();
+  }, []);
+
+  const activeSessionCount = sessions.filter((session) => session.status === "active").length;
+  const totalSnapshotPlaces = sessions.reduce(
+    (total, session) => total + (session.session_enrolment_snapshots?.[0]?.count ?? 0),
+    0,
+  );
+
+  const resetSessionForm = () => {
+    setCourseId("");
+    setClassTitle("");
+    setClassDate("");
+    setStartTime("");
+  };
+
+  const handleStartSession = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (saving) return;
+
+    if (!courseId || !classTitle.trim() || !classDate || !startTime) {
+      setMessage("Complete the course, class title, class date and start time before starting attendance.");
+      return;
+    }
+
+    setSaving(true);
+    setMessage("");
+    try {
+      const { data, error } = await supabase.rpc("start_attendance_session", {
+        p_course_id: courseId,
+        p_class_title: classTitle.trim(),
+        p_class_date: classDate,
+        p_start_time: startTime,
+      });
+
+      if (error) {
+        const detail = error.message.toLowerCase();
+        if (detail.includes("no active students")) {
+          setMessage("There are no active students enrolled in this course yet. Register students or update their course enrolments before starting this session.");
+        } else if (error.code === "42501") {
+          setMessage("Your staff account is not authorised to start attendance sessions.");
+        } else if (error.code === "22023") {
+          setMessage("The selected course or session details are not valid. Check the form and try again.");
+        } else {
+          setMessage("The attendance session could not be started. Check your connection and try again.");
+        }
+        return;
+      }
+
+      if (!data) {
+        setMessage("The session could not be confirmed. Refresh the page before trying again.");
+        return;
+      }
+
+      resetSessionForm();
+      setFormOpen(false);
+      setMessage("Attendance session started. The course's active student enrolments have been saved as a fixed session snapshot.");
+      await loadSessions();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const formatClassDate = (value: string) => {
+    const date = new Date(`${value}T12:00:00`);
+    return Number.isNaN(date.getTime())
+      ? value
+      : date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  };
+
+  const formatClassTime = (value: string) => value.slice(0, 5);
 
   return (
     <>
@@ -1085,19 +1190,30 @@ function AttendancePage({ onComingSoon, courses }: PageActionProps) {
         <div>
           <div className="eyebrow">CLASS MANAGEMENT</div>
           <h1>Attendance</h1>
-          <p>Create class sessions, scan eligible students and review attendance.</p>
+          <p>Create class sessions and save a fixed list of students eligible for each class.</p>
         </div>
-        <button className="primary-button" type="button" onClick={() => setFormOpen((open) => !open)}>
+        <button className="primary-button" type="button" onClick={() => {
+          setFormOpen((open) => !open);
+          setMessage("");
+        }}>
           {formOpen ? <X size={18} /> : <Plus size={18} />}
           {formOpen ? "Close form" : "Create attendance"}
         </button>
       </div>
 
       <section className="stats-grid" aria-label="Attendance overview">
-        <StatCard icon={<CalendarDays size={19} />} label="Attendance sessions" value="0" note="Sessions created" />
-        <StatCard icon={<Users size={19} />} label="Students present" value="0" note="Across all sessions" />
-        <StatCard icon={<FileText size={19} />} label="Reports available" value="0" note="Completed classes" />
+        <StatCard icon={<CalendarDays size={19} />} label="Sessions started" value={String(sessions.length)} note="Recent saved sessions" />
+        <StatCard icon={<Clock size={19} />} label="Active sessions" value={String(activeSessionCount)} note="Currently in progress" />
+        <StatCard icon={<Users size={19} />} label="Eligible places" value={String(totalSnapshotPlaces)} note="Saved enrolment snapshots" />
       </section>
+
+      {message && (
+        <div className="student-form-message" role="status">
+          <Info size={16} />
+          <span>{message}</span>
+          <button type="button" aria-label="Dismiss message" onClick={() => setMessage("")}><X size={15} /></button>
+        </div>
+      )}
 
       {formOpen && (
         <section className="panel attendance-form-panel">
@@ -1105,39 +1221,51 @@ function AttendancePage({ onComingSoon, courses }: PageActionProps) {
             <div>
               <div className="eyebrow">NEW CLASS SESSION</div>
               <h2>Create attendance</h2>
-              <p>Set up the class before starting the lecturer's attendance scan.</p>
+              <p>Choose the course and enter the details for the class you are starting.</p>
             </div>
             <span className="step-tag">SESSION SETUP</span>
           </div>
-          <form onSubmit={preventPreviewSubmit}>
+          <form onSubmit={handleStartSession}>
             <div className="form-grid">
               <label className="field">
                 <span>Course</span>
-                <select defaultValue="">
+                <select value={courseId} onChange={(event) => setCourseId(event.target.value)} required disabled={saving}>
                   <option value="" disabled>Select course</option>
                   {courses.map((course) => <option value={course.id} key={course.id}>{course.name}</option>)}
                 </select>
               </label>
               <label className="field">
                 <span>Class title</span>
-                <input type="text" placeholder="e.g. Week 1 Lecture" />
+                <input
+                  type="text"
+                  value={classTitle}
+                  onChange={(event) => setClassTitle(event.target.value)}
+                  placeholder="e.g. Week 1 Lecture"
+                  minLength={2}
+                  maxLength={160}
+                  required
+                  disabled={saving}
+                />
               </label>
               <label className="field">
                 <span>Class date</span>
-                <input type="date" />
+                <input type="date" value={classDate} onChange={(event) => setClassDate(event.target.value)} required disabled={saving} />
               </label>
               <label className="field">
                 <span>Start time</span>
-                <input type="time" />
+                <input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} required disabled={saving} />
               </label>
             </div>
             <div className="session-rule">
               <ShieldCheck size={19} />
-              <p>At session start, the eligible course enrolment list will be saved as a fixed snapshot. Later enrolment changes will not alter this class's attendance denominator.</p>
+              <p>When you start this session, CampusFace saves a fixed snapshot of all active students enrolled in the selected course. Later changes to student records or course enrolments will not change this session's eligible-student list.</p>
             </div>
             <div className="form-footer">
-              <p><Lock size={14} /> Session creation is disabled until the database workflow is added.</p>
-              <button type="submit" className="secondary-button">Start attendance <ArrowRight size={16} /></button>
+              <p><Lock size={14} /> Only active lecturers and administrators can start sessions.</p>
+              <button type="submit" className="secondary-button" disabled={saving || courses.length === 0}>
+                {saving ? "Starting session..." : "Start attendance"}
+                <ArrowRight size={16} />
+              </button>
             </div>
           </form>
         </section>
@@ -1147,28 +1275,44 @@ function AttendancePage({ onComingSoon, courses }: PageActionProps) {
         <div className="records-toolbar">
           <div>
             <h2>Recent sessions</h2>
-            <p>Attendance sessions and their current status.</p>
+            <p>Sessions created by you and sessions available to administrators.</p>
           </div>
           <div className="table-caption"><Clock size={15} /> Latest first</div>
         </div>
-        <div className="table-scroll">
-          <table className="records-table attendance-table">
-            <thead>
-              <tr>
-                <th>CLASS</th>
-                <th>COURSE</th>
-                <th>DATE & TIME</th>
-                <th>PRESENT</th>
-                <th>STATUS</th>
-              </tr>
-            </thead>
-          </table>
-        </div>
-        <EmptyState
-          icon={<ClipboardList size={25} />}
-          title="No attendance sessions yet"
-          description="Your class sessions will appear here once attendance creation and secure storage are connected."
-        />
+        {sessionsLoading ? (
+          <div className="student-directory-loading">Loading attendance sessions...</div>
+        ) : sessions.length > 0 ? (
+          <div className="table-scroll">
+            <table className="records-table attendance-table">
+              <thead>
+                <tr>
+                  <th>CLASS</th>
+                  <th>COURSE</th>
+                  <th>DATE & TIME</th>
+                  <th>ELIGIBLE</th>
+                  <th>STATUS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessions.map((session) => (
+                  <tr key={session.id}>
+                    <td><strong className="student-name-cell">{session.class_title}</strong></td>
+                    <td>{session.courses?.name ?? "Course unavailable"}</td>
+                    <td>{formatClassDate(session.class_date)}<small className="session-time-cell">{formatClassTime(session.start_time)}</small></td>
+                    <td>{session.session_enrolment_snapshots?.[0]?.count ?? 0} students</td>
+                    <td><span className={session.status === "active" ? "student-status-pill active" : "student-status-pill archived"}>{session.status === "active" ? "Active" : "Ended"}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={<ClipboardList size={25} />}
+            title="No attendance sessions yet"
+            description="Create attendance to start your first class. The eligible student list will be saved automatically when the session begins."
+          />
+        )}
       </section>
     </>
   );
