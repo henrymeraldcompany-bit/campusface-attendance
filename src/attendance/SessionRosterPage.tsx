@@ -175,6 +175,7 @@ export function SessionRosterPage({ session, onBack }: Props) {
         } else {
           setActionError("Attendance could not be saved. Check your connection and retry.");
         }
+        setPendingStudent(null);
         return;
       }
 
@@ -188,6 +189,7 @@ export function SessionRosterPage({ session, onBack }: Props) {
       setReloadKey((value) => value + 1);
     } catch {
       setActionError("Attendance could not be saved. Check your connection and retry.");
+      setPendingStudent(null);
     } finally {
       setMarking(false);
     }
