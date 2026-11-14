@@ -4,6 +4,9 @@ import { ArrowRight, Check, Pencil, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import type { CourseRecord } from "../admin/CourseCataloguePage";
 
+export type AcademicFacultyOption = { id: string; name: string; is_active: boolean };
+export type AcademicDepartmentOption = { id: string; faculty_id: string; name: string; is_active: boolean };
+
 export type ManagedStudentRecord = {
   id: string;
   full_name: string;
@@ -11,6 +14,8 @@ export type ManagedStudentRecord = {
   gender: "female" | "male";
   faculty: string;
   department: string;
+  faculty_id: string | null;
+  department_id: string | null;
   is_active: boolean;
   student_courses: Array<{
     course_id: string;
@@ -21,6 +26,8 @@ export type ManagedStudentRecord = {
 type EditStudentDialogProps = {
   student: ManagedStudentRecord;
   courses: CourseRecord[];
+  faculties: AcademicFacultyOption[];
+  departments: AcademicDepartmentOption[];
   onClose: () => void;
   onSaved: () => Promise<void>;
 };
@@ -28,14 +35,22 @@ type EditStudentDialogProps = {
 export function EditStudentDialog({
   student,
   courses,
+  faculties,
+  departments,
   onClose,
   onSaved,
 }: EditStudentDialogProps) {
   const [fullName, setFullName] = useState(student.full_name);
   const [registrationNumber, setRegistrationNumber] = useState(student.registration_number);
   const [gender, setGender] = useState<"female" | "male">(student.gender);
-  const [faculty, setFaculty] = useState(student.faculty);
-  const [department, setDepartment] = useState(student.department);
+  const matchedFaculty = faculties.find((item) => item.name.trim().toLowerCase() === student.faculty.trim().toLowerCase());
+  const initialFacultyId = student.faculty_id ?? matchedFaculty?.id ?? "";
+  const matchedDepartment = departments.find((item) =>
+    item.faculty_id === initialFacultyId &&
+    item.name.trim().toLowerCase() === student.department.trim().toLowerCase()
+  );
+  const [facultyId, setFacultyId] = useState(initialFacultyId);
+  const [departmentId, setDepartmentId] = useState(student.department_id ?? matchedDepartment?.id ?? "");
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>(
     student.student_courses.map((item) => item.course_id),
   );
@@ -51,6 +66,11 @@ export function EditStudentDialog({
     );
   };
 
+  const facultyChoices = faculties.filter((faculty) => faculty.is_active || faculty.id === facultyId);
+  const departmentChoices = departments.filter((department) =>
+    department.faculty_id === facultyId && (department.is_active || department.id === departmentId)
+  );
+
   const filteredCourses = courses.filter((course) => {
     const matchesSearch = course.name.toLowerCase().includes(courseSearch.trim().toLowerCase());
     const isAlreadyEnrolled = selectedCourseIds.includes(course.id);
@@ -61,6 +81,11 @@ export function EditStudentDialog({
     event.preventDefault();
     if (saving) return;
 
+    if (!facultyId || !departmentId) {
+      setMessage("Select a faculty and a department belonging to that faculty.");
+      return;
+    }
+
     if (selectedCourseIds.length === 0) {
       setMessage("Select at least one active course for this student.");
       return;
@@ -69,13 +94,13 @@ export function EditStudentDialog({
     setSaving(true);
     setMessage("");
     try {
-      const { error } = await supabase.rpc("update_student_record", {
+      const { error } = await supabase.rpc("update_student_record_with_academic_structure", {
         p_student_id: student.id,
         p_full_name: fullName.trim(),
         p_registration_number: registrationNumber.trim(),
         p_gender: gender,
-        p_faculty: faculty.trim(),
-        p_department: department.trim(),
+        p_faculty_id: facultyId,
+        p_department_id: departmentId,
         p_course_ids: selectedCourseIds,
       });
 
@@ -143,11 +168,38 @@ export function EditStudentDialog({
             </label>
             <label className="field">
               <span>Faculty</span>
-              <input value={faculty} onChange={(event) => setFaculty(event.target.value)} minLength={2} maxLength={120} required disabled={saving} />
+              <select
+                value={facultyId}
+                onChange={(event) => {
+                  setFacultyId(event.target.value);
+                  setDepartmentId("");
+                }}
+                required
+                disabled={saving}
+              >
+                <option value="" disabled>Select faculty</option>
+                {facultyChoices.map((faculty) => (
+                  <option key={faculty.id} value={faculty.id}>
+                    {faculty.name}{!faculty.is_active ? " (inactive — existing record)" : ""}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="field">
               <span>Department</span>
-              <input value={department} onChange={(event) => setDepartment(event.target.value)} minLength={2} maxLength={120} required disabled={saving} />
+              <select
+                value={departmentId}
+                onChange={(event) => setDepartmentId(event.target.value)}
+                required
+                disabled={saving || !facultyId}
+              >
+                <option value="" disabled>{facultyId ? "Select department" : "Select faculty first"}</option>
+                {departmentChoices.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}{!department.is_active ? " (inactive — existing record)" : ""}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
 
@@ -190,7 +242,7 @@ export function EditStudentDialog({
 
           <div className="student-dialog-actions">
             <button className="course-admin-text-button" type="button" onClick={onClose} disabled={saving}>Cancel</button>
-            <button className="primary-button" type="submit" disabled={saving || selectedCourseIds.length === 0}>
+            <button className="primary-button" type="submit" disabled={saving || selectedCourseIds.length === 0 || !facultyId || !departmentId}>
               <Pencil size={16} />
               {saving ? "Saving changes..." : "Save changes"}
               <ArrowRight size={15} />
