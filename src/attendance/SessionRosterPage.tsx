@@ -52,35 +52,7 @@ export function SessionRosterPage({ session, onBack }: Props) {
   const [captureEnabled, setCaptureEnabled] = useState(false);
   const [gateChecked, setGateChecked] = useState(false);
 
-  const loadRoster = async () => {
-    setLoading(true);
-    setLoadError("");
 
-    const [rosterResult, gateResult] = await Promise.all([
-      supabase
-        .from("session_enrolment_snapshots")
-        .select("student_id, student_full_name, registration_number, gender, faculty, department, snapshotted_at")
-        .eq("session_id", session.id)
-        .order("student_full_name", { ascending: true }),
-      supabase
-        .from("biometric_processing_gate")
-        .select("capture_enabled")
-        .eq("id", 1)
-        .maybeSingle(),
-    ]);
-
-    if (rosterResult.error) {
-      setStudents([]);
-      setLoadError("The saved session roster could not be loaded. Check your staff access and connection.");
-    } else {
-      setStudents((rosterResult.data ?? []) as SnapshotStudent[]);
-    }
-
-    // A missing or unreadable gate must always fail closed.
-    setCaptureEnabled(Boolean(!gateResult.error && gateResult.data?.capture_enabled));
-    setGateChecked(!gateResult.error && Boolean(gateResult.data));
-    setLoading(false);
-  };
 
   useEffect(() => {
     let active = true;
