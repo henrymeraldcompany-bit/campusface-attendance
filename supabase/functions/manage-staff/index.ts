@@ -155,6 +155,7 @@ Deno.serve(async (request: Request) => {
           full_name: fullName,
           campusface_role_label: role === "lecturer" ? "Lecturer" : "Administrator",
           campusface_course_names: courseNamesDisplay,
+          campusface_invitation_pending: true,
         },
         redirectTo: siteUrl,
       },
