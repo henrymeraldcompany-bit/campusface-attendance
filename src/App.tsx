@@ -37,6 +37,7 @@ import { StaffManagementPage } from "./admin/StaffManagementPage";
 import { supabase } from "./lib/supabase";
 import { EditStudentDialog, type ManagedStudentRecord } from "./registration/EditStudentDialog";
 import { FaceRegistrationReadinessPage } from "./registration/FaceRegistrationReadinessPage";
+import { SessionRosterPage, type SessionRosterSummary } from "./attendance/SessionRosterPage";
 
 type MainTab = "registration" | "attendance";
 type ThemeMode = "light" | "dark";
@@ -1159,6 +1160,7 @@ function AttendancePage({ courses }: { courses: CourseRecord[] }) {
   const [saving, setSaving] = useState(false);
   const [formMessage, setFormMessage] = useState("");
   const [loadError, setLoadError] = useState("");
+  const [selectedSession, setSelectedSession] = useState<AttendanceSessionRow | null>(null);
 
   const loadSessions = async (showLoading = true): Promise<AttendanceSessionRow[]> => {
     if (showLoading) setSessionsLoading(true);
@@ -1272,6 +1274,15 @@ function AttendancePage({ courses }: { courses: CourseRecord[] }) {
   };
 
   const activeSessionCount = sessions.filter((session) => session.status === "active").length;
+
+  if (selectedSession) {
+    return (
+      <SessionRosterPage
+        session={selectedSession as SessionRosterSummary}
+        onBack={() => setSelectedSession(null)}
+      />
+    );
+  }
 
   return (
     <>
@@ -1405,6 +1416,7 @@ function AttendancePage({ courses }: { courses: CourseRecord[] }) {
                   <th>DATE & TIME</th>
                   <th>STUDENTS SNAPSHOTTED</th>
                   <th>STATUS</th>
+                  <th>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
@@ -1423,6 +1435,16 @@ function AttendancePage({ courses }: { courses: CourseRecord[] }) {
                       <span className={session.status === "active" ? "student-status-pill active" : "student-status-pill archived"}>
                         {session.status === "active" ? "Active" : "Ended"}
                       </span>
+                    </td>
+                    <td>
+                      <button
+                        className="session-view-roster-button"
+                        type="button"
+                        onClick={() => setSelectedSession(session)}
+                      >
+                        <Users size={13} />
+                        View roster
+                      </button>
                     </td>
                   </tr>
                 ))}
