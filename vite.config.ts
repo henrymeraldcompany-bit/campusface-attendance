@@ -11,25 +11,27 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["pwa-192.png", "pwa-512.png"],
       manifest: {
-        id: "/campusface-attendance/",
+        id: "./",
         name: "CampusFace Attendance",
         short_name: "CampusFace",
         description: "A lecturer-only campus attendance workspace.",
         theme_color: "#102336",
         background_color: "#f4f7fa",
         display: "standalone",
+        display_override: ["standalone", "minimal-ui", "browser"],
+        prefer_related_applications: false,
         orientation: "portrait",
-        scope: "/campusface-attendance/",
-        start_url: "/campusface-attendance/",
+        scope: "./",
+        start_url: "./",
         icons: [
           {
-            src: "pwa-192.png",
+            src: "./pwa-192.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any"
           },
           {
-            src: "pwa-512.png",
+            src: "./pwa-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any maskable"
