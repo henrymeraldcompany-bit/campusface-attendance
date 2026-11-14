@@ -32,6 +32,8 @@ import {
 import "./styles.css";
 import type { StaffProfile } from "./auth/AuthGate";
 import { CourseCataloguePage, type CourseRecord } from "./admin/CourseCataloguePage";
+import { AcademicStructurePage } from "./admin/AcademicStructurePage";
+import { StaffManagementPage } from "./admin/StaffManagementPage";
 import { supabase } from "./lib/supabase";
 import { EditStudentDialog, type ManagedStudentRecord } from "./registration/EditStudentDialog";
 import { FaceRegistrationReadinessPage } from "./registration/FaceRegistrationReadinessPage";
@@ -85,7 +87,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
   const [toast, setToast] = useState("");
   const [courses, setCourses] = useState<CourseRecord[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
-  const [adminPage, setAdminPage] = useState<"workspace" | "settings" | "courses" | "face-readiness">("workspace");
+  const [adminPage, setAdminPage] = useState<"workspace" | "settings" | "courses" | "face-readiness" | "academic-structure" | "staff-management">("workspace");
   const [faceReadinessStudent, setFaceReadinessStudent] = useState<ManagedStudentRecord | null>(null);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -340,7 +342,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
                     </span>
                     <ArrowRight size={17} />
                   </button>
-                  <button className="settings-action-row" type="button" onClick={() => showComingSoon("Faculty and department management")}>
+                  <button className="settings-action-row" type="button" onClick={() => setAdminPage("academic-structure")}>
                     <span className="settings-action-icon"><Building2 size={18} /></span>
                     <span className="settings-action-copy">
                       <strong>Faculties and departments</strong>
@@ -348,7 +350,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
                     </span>
                     <ArrowRight size={17} />
                   </button>
-                  <button className="settings-action-row" type="button" onClick={() => showComingSoon("Staff and permissions")}>
+                  <button className="settings-action-row" type="button" onClick={() => setAdminPage("staff-management")}>
                     <span className="settings-action-icon"><Users size={18} /></span>
                     <span className="settings-action-copy">
                       <strong>Staff and permissions</strong>
@@ -397,6 +399,10 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
               onBack={() => setAdminPage("settings")}
               onRefresh={refreshCourses}
             />
+          ) : adminPage === "academic-structure" && isAdministrator ? (
+            <AcademicStructurePage onBack={() => setAdminPage("settings")} />
+          ) : adminPage === "staff-management" && isAdministrator ? (
+            <StaffManagementPage onBack={() => setAdminPage("settings")} />
           ) : adminPage === "face-readiness" && faceReadinessStudent ? (
             <FaceRegistrationReadinessPage
               student={faceReadinessStudent}
@@ -473,7 +479,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
 type SidebarProps = {
   activeTab: MainTab;
   onNavigate: (tab: MainTab) => void;
-  activePage: "workspace" | "settings" | "courses" | "face-readiness";
+  activePage: "workspace" | "settings" | "courses" | "face-readiness" | "academic-structure" | "staff-management";
   onOpenSettings: () => void;
   isAdministrator: boolean;
   staffProfile: StaffProfile;
@@ -529,7 +535,7 @@ function Sidebar({
         >
           <Settings size={19} />
           <span>Settings</span>
-          {(activePage === "settings" || activePage === "courses") && <span className="nav-indicator" />}
+          {(activePage === "settings" || activePage === "courses" || activePage === "academic-structure" || activePage === "staff-management") && <span className="nav-indicator" />}
         </button>
       </nav>
 
