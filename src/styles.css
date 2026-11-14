@@ -2359,3 +2359,48 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .session-roster-student { align-items: flex-start; padding: 12px; }
   .session-roster-face-status { max-width: 100px; line-height: 1.4; }
 }
+
+
+/* Manual attendance marking and confirmation */
+.session-attendance-stats { margin-bottom: 16px; }
+.session-roster-student.is-present { background: rgba(35, 145, 94, .035); }
+.session-attendance-mark-present {
+  display: grid;
+  min-width: 90px;
+  justify-items: end;
+  gap: 3px;
+  color: #28734f;
+  font-size: 9px;
+  font-weight: 800;
+}
+.session-attendance-mark-present svg { display: inline-block; vertical-align: middle; }
+.session-attendance-mark-present small {
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 550;
+}
+.session-mark-present-button {
+  min-height: 34px;
+  flex: 0 0 auto;
+  padding: 0 11px;
+  border: 1px solid rgba(var(--accent-rgb, 22,123,123), .25);
+  border-radius: 8px;
+  color: var(--teal-dark);
+  background: var(--teal-light);
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.session-mark-present-button:hover { border-color: var(--teal); }
+.session-mark-present-button:disabled { cursor: not-allowed; opacity: .48; }
+:root[data-theme="dark"] .session-attendance-mark-present { color: #a6e5c0; }
+:root[data-theme="dark"] .session-roster-student.is-present { background: rgba(42, 140, 89, .08); }
+:root[data-theme="dark"] .session-mark-present-button {
+  border-color: rgba(var(--accent-rgb, 22,123,123), .36);
+  color: #d2ebe8;
+}
+@media (max-width: 760px) {
+  .session-attendance-stats .stat-card { min-width: 0; }
+  .session-attendance-mark-present { min-width: 76px; font-size: 8px; }
+  .session-mark-present-button { min-height: 32px; padding: 0 8px; font-size: 8px; }
+}
