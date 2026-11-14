@@ -6,7 +6,6 @@ import {
   EyeOff,
   GraduationCap,
   LogIn,
-  Mail,
   ShieldCheck,
 } from "lucide-react";
 
