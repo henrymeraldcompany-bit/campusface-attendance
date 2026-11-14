@@ -1066,18 +1066,6 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
   );
 }
 
-type AttendanceSessionRecord = {
-  id: string;
-  course_id: string;
-  class_title: string;
-  class_date: string;
-  start_time: string;
-  started_at: string;
-  status: "active" | "ended";
-  courses: { name: string } | null;
-  session_enrolment_snapshots: Array<{ count: number }>;
-};
-
 function getLocalDateInputValue() {
   const now = new Date();
   const year = now.getFullYear();
