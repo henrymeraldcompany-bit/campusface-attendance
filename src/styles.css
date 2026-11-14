@@ -2544,7 +2544,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   }
   .session-print-report {
     display: block !important;
-    position: fixed !important;
+    position: absolute !important;
     inset: 0 auto auto 0 !important;
     z-index: 2147483000 !important;
     width: 100% !important;
