@@ -977,3 +977,6 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .signout-button { width: 36px; min-width: 36px; padding: 0; }
   .signout-button span { display: none; }
 }
+
+.auth-forgot-link { justify-self: end; margin-top: 10px; padding: 5px 0; border: 0; color: var(--teal-dark); background: transparent; font-size: 11px; font-weight: 700; }
+.auth-forgot-link:hover { text-decoration: underline; }
