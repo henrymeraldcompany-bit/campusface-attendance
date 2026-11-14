@@ -6,6 +6,7 @@ A lecturer-only university attendance management Progressive Web App (PWA), desi
 
 - Only authorised lecturers and administrators may sign in.
 - Students do not have accounts, login pages, dashboards, or self-registration.
+- Staff access requires a matching, active row in `public.staff_profiles`; profile roles cannot be edited by ordinary signed-in users.
 - Lecturers manage student records, course enrolments, attendance sessions, and reports.
 
 ## Current development status
@@ -13,7 +14,9 @@ A lecturer-only university attendance management Progressive Web App (PWA), desi
 - Task 1: React, TypeScript, Vite and repository foundation.
 - Task 2: responsive lecturer web interface, persistent light/dark theme, and accent-colour settings.
 - PWA: Vite PWA plugin generates the web app manifest and service worker; browser installation uses the native install prompt.
-- The visible interface is still a preview. Authentication, database writes, real student records, camera capture and attendance processing are not connected yet.
+- Task 3: Supabase email/password sign-in is connected to the staff profile table. Only active lecturer and administrator profiles can enter the workspace.
+- Student records, academic database workflows, camera capture and attendance processing are still under development.
+- Staff accounts must be provisioned by a trusted administrator; the app has no public sign-up or student login.
 
 ## Main application areas
 
@@ -24,7 +27,7 @@ The two main workspace tabs are **Registration** and **Attendance**. Academic se
 - React + TypeScript + Vite
 - `vite-plugin-pwa` for the manifest, service worker, offline app shell and automatic updates
 - Browser-native installation: Chrome's **Install app** action launches CampusFace as a standalone web app; no APK or native Android wrapper is required.
-- Supabase is planned for authentication, database and server-side access policies (not configured yet).
+- Supabase Auth and PostgreSQL are connected for staff authentication. The browser uses the project publishable key and Row Level Security; service-role credentials are never included in the frontend.
 - Browser-based face processing will use a separately selected, licensed and evaluated model (not configured yet).
 
 ## Local development
