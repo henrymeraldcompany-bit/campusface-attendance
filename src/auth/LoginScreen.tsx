@@ -36,7 +36,22 @@ export function LoginScreen({ onSignIn, message, onRequestPasswordReset, recover
     }
   };
 
-  const handleRecovery = async (event: FormEvent<HTMLFormElement>) => {\n    event.preventDefault();\n    if (!email.trim() || submitting) return;\n    setSubmitting(true);\n    try { await onRequestPasswordReset(email.trim()); } finally { setSubmitting(false); }\n  };\n\n  const handleUpdatePassword = async (event: FormEvent<HTMLFormElement>) => {\n    event.preventDefault();\n    if (newPassword.length < 8 || submitting) return;\n    setSubmitting(true);\n    try { await onUpdatePassword(newPassword); } finally { setSubmitting(false); }\n  };\n\n  return (\n    <main className="auth-screen">
+  const handleRecovery = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!email.trim() || submitting) return;
+    setSubmitting(true);
+    try { await onRequestPasswordReset(email.trim()); } finally { setSubmitting(false); }
+  };
+
+  const handleUpdatePassword = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (newPassword.length < 8 || submitting) return;
+    setSubmitting(true);
+    try { await onUpdatePassword(newPassword); } finally { setSubmitting(false); }
+  };
+
+  return (
+    <main className="auth-screen">
       <section className="auth-card" aria-labelledby="auth-title">
         <div className="auth-brand-mark">
           <GraduationCap size={27} />
