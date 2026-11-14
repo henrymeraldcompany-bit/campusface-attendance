@@ -619,11 +619,6 @@ function AppearanceSettings({
   );
 }
 
-type PageActionProps = {
-  onComingSoon: (feature: string) => void;
-  courses: CourseRecord[];
-};
-
 type StudentRecord = ManagedStudentRecord;
 
 function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRecord[]; onOpenFaceReadiness: (student: ManagedStudentRecord) => void }) {
@@ -1275,7 +1270,7 @@ function AttendancePage({ courses }: { courses: CourseRecord[] }) {
         <div className="records-toolbar">
           <div>
             <h2>Recent sessions</h2>
-            <p>Sessions created by you and sessions available to administrators.</p>
+            <p>Sessions in your authorised staff workspace.</p>
           </div>
           <div className="table-caption"><Clock size={15} /> Latest first</div>
         </div>
