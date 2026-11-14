@@ -1,7 +1,7 @@
 {
   "name": "campusface-attendance",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "engines": {
     "node": ">=22.0.0"
@@ -10,23 +10,19 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b",
-    "android:sync": "npm run build && cap sync android"
+    "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@capacitor/android": "8.6.2",
-    "@capacitor/core": "8.6.2",
     "lucide-react": "^1.72.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@capacitor/assets": "3.0.5",
-    "@capacitor/cli": "8.6.2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^4.6.0",
     "typescript": "^5.8.3",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vite-plugin-pwa": "^0.21.1"
   }
 }
