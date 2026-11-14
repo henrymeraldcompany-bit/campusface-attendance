@@ -27,7 +27,7 @@ A lecturer-only university attendance management Progressive Web App (PWA), desi
 
 ## Main application areas
 
-The two main workspace tabs are **Registration** and **Attendance**. A full-page **Settings** area is available to all staff. The **Course catalogue** is available to administrators from Settings. Faculty/department management and staff administration will be implemented separately.
+The two main workspace tabs are **Registration** and **Attendance**. A full-page **Settings** area is available to all staff. The **Course catalogue** is available to administrators from Settings. Faculty/department management and staff administration are available to administrators from Settings.
 
 ## Technology
 
