@@ -26,6 +26,34 @@ import {
 import "./styles.css";
 
 type MainTab = "registration" | "attendance";
+type ThemeMode = "light" | "dark";
+
+const ACCENT_PRESETS = [
+  { name: "Ocean", value: "#167b7b" },
+  { name: "Blue", value: "#2563eb" },
+  { name: "Emerald", value: "#15803d" },
+  { name: "Violet", value: "#7c3aed" },
+  { name: "Rose", value: "#e11d48" },
+  { name: "Amber", value: "#b45309" },
+  { name: "Cyan", value: "#0891b2" },
+  { name: "Slate", value: "#475569" }
+];
+
+function hexToRgb(hex: string) {
+  const clean = hex.replace("#", "");
+  return {
+    r: parseInt(clean.slice(0, 2), 16),
+    g: parseInt(clean.slice(2, 4), 16),
+    b: parseInt(clean.slice(4, 6), 16)
+  };
+}
+
+function darkenHex(hex: string, amount = 0.18) {
+  const { r, g, b } = hexToRgb(hex);
+  return "#" + [r, g, b]
+    .map((channel) => Math.round(channel * (1 - amount)).toString(16).padStart(2, "0"))
+    .join("");
+}
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform?: string }>;
@@ -49,6 +77,21 @@ function App() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [toast, setToast] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    try {
+      return localStorage.getItem("campusface-theme") === "dark" ? "dark" : "light";
+    } catch {
+      return "light";
+    }
+  });
+  const [accentColor, setAccentColor] = useState(() => {
+    try {
+      const saved = localStorage.getItem("campusface-accent");
+      return saved && /^#[0-9a-fA-F]{6}$/.test(saved) ? saved : "#167b7b";
+    } catch {
+      return "#167b7b";
+    }
+  });
 
   useEffect(() => {
     const captureInstallPrompt = (event: Event) => {
@@ -101,6 +144,10 @@ function App() {
           settingsOpen={settingsOpen}
           onToggleSettings={() => setSettingsOpen((open) => !open)}
           onSettingsAction={showComingSoon}
+          theme={theme}
+          onThemeChange={setTheme}
+          accentColor={accentColor}
+          onAccentChange={setAccentColor}
         />
       </aside>
 
@@ -170,13 +217,20 @@ function App() {
         {mobileMenuOpen && (
           <div className="mobile-settings-panel">
             <div className="mobile-settings-head">
-              <strong>Restricted settings</strong>
+              <strong>Settings</strong>
               <button type="button" aria-label="Close settings" onClick={() => setMobileMenuOpen(false)}><X size={18} /></button>
             </div>
+            <AppearanceSettings
+              theme={theme}
+              onThemeChange={setTheme}
+              accentColor={accentColor}
+              onAccentChange={setAccentColor}
+            />
+            <div className="settings-subheading">ADMINISTRATION</div>
             <button type="button" onClick={() => showComingSoon("Course catalogue")}>Course catalogue <Lock size={14} /></button>
             <button type="button" onClick={() => showComingSoon("Faculty and departments")}>Faculties & departments <Lock size={14} /></button>
             <button type="button" onClick={() => showComingSoon("Staff and permissions")}>Staff & permissions <Lock size={14} /></button>
-            <p>These controls will require administrator access.</p>
+            <p>Administrative controls will require administrator access.</p>
           </div>
         )}
 
@@ -198,6 +252,10 @@ type SidebarProps = {
   settingsOpen: boolean;
   onToggleSettings: () => void;
   onSettingsAction: (feature: string) => void;
+  theme: ThemeMode;
+  onThemeChange: (theme: ThemeMode) => void;
+  accentColor: string;
+  onAccentChange: (color: string) => void;
 };
 
 function Sidebar({
@@ -205,7 +263,11 @@ function Sidebar({
   onNavigate,
   settingsOpen,
   onToggleSettings,
-  onSettingsAction
+  onSettingsAction,
+  theme,
+  onThemeChange,
+  accentColor,
+  onAccentChange
 }: SidebarProps) {
   return (
     <div className="sidebar-content">
@@ -255,6 +317,13 @@ function Sidebar({
 
         {settingsOpen && (
           <div className="settings-dropdown">
+            <AppearanceSettings
+              theme={theme}
+              onThemeChange={onThemeChange}
+              accentColor={accentColor}
+              onAccentChange={onAccentChange}
+            />
+            <div className="settings-subheading">ADMINISTRATION</div>
             <button type="button" onClick={() => onSettingsAction("Course catalogue")}>
               <BookOpen size={16} />
               <span>Course catalogue</span>
@@ -291,6 +360,73 @@ function Sidebar({
         <span className="profile-status" />
       </div>
     </div>
+  );
+}
+
+
+type AppearanceSettingsProps = {
+  theme: ThemeMode;
+  onThemeChange: (theme: ThemeMode) => void;
+  accentColor: string;
+  onAccentChange: (color: string) => void;
+};
+
+function AppearanceSettings({
+  theme,
+  onThemeChange,
+  accentColor,
+  onAccentChange
+}: AppearanceSettingsProps) {
+  return (
+    <section className="appearance-settings" aria-label="Appearance settings">
+      <div className="appearance-title"><Palette size={15} /> APPEARANCE</div>
+      <div className="appearance-theme-control" aria-label="Choose app theme">
+        <button
+          type="button"
+          className={theme === "light" ? "appearance-theme active" : "appearance-theme"}
+          aria-pressed={theme === "light"}
+          onClick={() => onThemeChange("light")}
+        >
+          <Sun size={14} /> Light
+        </button>
+        <button
+          type="button"
+          className={theme === "dark" ? "appearance-theme active" : "appearance-theme"}
+          aria-pressed={theme === "dark"}
+          onClick={() => onThemeChange("dark")}
+        >
+          <Moon size={14} /> Dark
+        </button>
+      </div>
+      <div className="accent-picker-heading">
+        <span>Accent colour</span>
+        <span>{ACCENT_PRESETS.find((item) => item.value.toLowerCase() === accentColor.toLowerCase())?.name ?? "Custom"}</span>
+      </div>
+      <div className="accent-swatches">
+        {ACCENT_PRESETS.map((preset) => (
+          <button
+            key={preset.value}
+            type="button"
+            className={accentColor.toLowerCase() === preset.value.toLowerCase() ? "accent-swatch selected" : "accent-swatch"}
+            style={{ backgroundColor: preset.value }}
+            aria-label={`Use ${preset.name} accent colour`}
+            aria-pressed={accentColor.toLowerCase() === preset.value.toLowerCase()}
+            title={preset.name}
+            onClick={() => onAccentChange(preset.value)}
+          />
+        ))}
+        <label className="custom-accent-control" title="Choose a custom accent colour">
+          <input
+            type="color"
+            value={accentColor}
+            aria-label="Choose custom accent colour"
+            onChange={(event) => onAccentChange(event.target.value)}
+          />
+          <span>+</span>
+        </label>
+      </div>
+      <p className="appearance-save-note">Your appearance choices are saved on this device.</p>
+    </section>
   );
 }
 
