@@ -29,6 +29,7 @@ A lecturer-only university attendance management Progressive Web App (PWA), desi
 - Task 12: ended sessions can be exported as CSV with session details, attendance totals and one row per student. A print-ready report includes the class summary plus separate present and absent lists; Chrome's Print screen can save it as a PDF. The export uses the final saved session snapshot and attendance records. Face scanning remains unimplemented and disabled; attendance verification is manual only.
 - Task 13: all 11 public application tables have Row Level Security enabled; unauthenticated roles have no table grants, and exposed RPC execution is restricted. The session-creation endpoint is an invoker-only public wrapper around a permission-checked helper in the private schema. The frontend contains only the Supabase publishable key, not a service-role or secret key. Supabase Auth leaked-password protection is a paid-plan dashboard feature and is not enabled on the current project plan.
 - Task 14: automated regression tests cover attendance totals from the immutable session roster, zero/partial/full attendance, exclusion of marks outside the saved roster, CSV cell quoting and formula-prefix neutralisation, and safe report filenames. Both the build check and deployment workflow run the tests before building or publishing.
+- Task 15: Playwright browser acceptance tests verify the staff-only sign-in screen, absence of public sign-up, password show/hide control, password-reset navigation, narrow-phone layout, and the generated PWA manifest/service worker. Tests use an isolated browser session and synthetic text only; they do not use real staff credentials, send password-reset emails or access student records. Both CI workflows run browser tests against the production build before release.
 - Staff accounts must be provisioned by a trusted administrator; the app has no public sign-up or student login.
 
 ## Main application areas
@@ -57,6 +58,8 @@ Run regression tests, then build and typecheck:
 ```bash
 npm test
 npm run build
+npx playwright install chromium
+npm run test:e2e
 ```
 
 ## Website and installation
