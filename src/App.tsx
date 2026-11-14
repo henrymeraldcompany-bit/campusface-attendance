@@ -34,6 +34,7 @@ import type { StaffProfile } from "./auth/AuthGate";
 import { CourseCataloguePage, type CourseRecord } from "./admin/CourseCataloguePage";
 import { AcademicStructurePage } from "./admin/AcademicStructurePage";
 import { StaffManagementPage } from "./admin/StaffManagementPage";
+import { LecturerCourseAssignmentsPage } from "./admin/LecturerCourseAssignmentsPage";
 import { supabase } from "./lib/supabase";
 import { EditStudentDialog, type ManagedStudentRecord } from "./registration/EditStudentDialog";
 import { FaceRegistrationReadinessPage } from "./registration/FaceRegistrationReadinessPage";
@@ -82,13 +83,13 @@ function isRunningAsInstalledApp() {
 }
 
 function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOut: () => Promise<void> }) {
-  const [activeTab, setActiveTab] = useState<MainTab>("registration");
+  const [activeTab, setActiveTab] = useState<MainTab>(staffProfile.staff_role === "administrator" ? "registration" : "attendance");
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(isRunningAsInstalledApp);
   const [toast, setToast] = useState("");
   const [courses, setCourses] = useState<CourseRecord[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
-  const [adminPage, setAdminPage] = useState<"workspace" | "settings" | "courses" | "face-readiness" | "academic-structure" | "staff-management">("workspace");
+  const [adminPage, setAdminPage] = useState<"workspace" | "settings" | "courses" | "face-readiness" | "academic-structure" | "staff-management" | "course-assignments">("workspace");
   const [faceReadinessStudent, setFaceReadinessStudent] = useState<ManagedStudentRecord | null>(null);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -347,6 +348,14 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
                     </span>
                     <ArrowRight size={17} />
                   </button>
+                  <button className="settings-action-row" type="button" onClick={() => setAdminPage("course-assignments")}>
+                    <span className="settings-action-icon"><BookOpen size={18} /></span>
+                    <span className="settings-action-copy">
+                      <strong>Lecturer course assignments</strong>
+                      <small>Choose the courses each lecturer can manage</small>
+                    </span>
+                    <ArrowRight size={17} />
+                  </button>
                   <button className="settings-action-row" type="button" onClick={() => setAdminPage("staff-management")}>
                     <span className="settings-action-icon"><Users size={18} /></span>
                     <span className="settings-action-copy">
@@ -398,6 +407,8 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
             />
           ) : adminPage === "academic-structure" && isAdministrator ? (
             <AcademicStructurePage onBack={() => setAdminPage("settings")} />
+          ) : adminPage === "course-assignments" && isAdministrator ? (
+            <LecturerCourseAssignmentsPage onBack={() => setAdminPage("settings")} />
           ) : adminPage === "staff-management" && isAdministrator ? (
             <StaffManagementPage onBack={() => setAdminPage("settings")} />
           ) : adminPage === "face-readiness" && faceReadinessStudent ? (
@@ -409,27 +420,35 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
             <>
               <div className="preview-notice">
                 <Info size={17} />
-                <span><strong>Staff access verified.</strong> Student records and manual attendance are available. Face scanning is not yet implemented and remains disabled.</span>
+                <span>
+                  <strong>Staff access verified.</strong>{" "}
+                  {isAdministrator
+                    ? "You can manage student records and attendance across the course catalogue."
+                    : "Only courses assigned to your lecturer account are available for attendance."}{" "}
+                  Face scanning is not yet implemented and remains disabled.
+                </span>
               </div>
 
-              {activeTab === "registration" ? (
+              {activeTab === "registration" && isAdministrator ? (
                 <RegistrationPage courses={courses} onOpenFaceReadiness={openFaceReadiness} />
               ) : (
-                <AttendancePage courses={activeCourses} />
+                <AttendancePage courses={activeCourses} isAdministrator={isAdministrator} />
               )}
             </>
           )}
         </main>
 
-        <nav className="mobile-nav" aria-label="Main navigation">
-          <button
-            className={activeTab === "registration" ? "mobile-nav-item active" : "mobile-nav-item"}
-            onClick={() => switchTab("registration")}
-            type="button"
-          >
-            <UserPlus size={20} />
-            <span>Registration</span>
-          </button>
+        <nav className={isAdministrator ? "mobile-nav" : "mobile-nav mobile-nav-single"} aria-label="Main navigation">
+          {isAdministrator && (
+            <button
+              className={activeTab === "registration" ? "mobile-nav-item active" : "mobile-nav-item"}
+              onClick={() => switchTab("registration")}
+              type="button"
+            >
+              <UserPlus size={20} />
+              <span>Registration</span>
+            </button>
+          )}
           <button
             className={activeTab === "attendance" ? "mobile-nav-item active" : "mobile-nav-item"}
             onClick={() => switchTab("attendance")}
@@ -476,7 +495,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
 type SidebarProps = {
   activeTab: MainTab;
   onNavigate: (tab: MainTab) => void;
-  activePage: "workspace" | "settings" | "courses" | "face-readiness" | "academic-structure" | "staff-management";
+  activePage: "workspace" | "settings" | "courses" | "face-readiness" | "academic-structure" | "staff-management" | "course-assignments";
   onOpenSettings: () => void;
   isAdministrator: boolean;
   staffProfile: StaffProfile;
@@ -502,15 +521,17 @@ function Sidebar({
 
       <div className="sidebar-section-label">WORKSPACE</div>
       <nav className="sidebar-nav" aria-label="Main navigation">
-        <button
-          type="button"
-          className={activeTab === "registration" && activePage === "workspace" ? "sidebar-link selected" : "sidebar-link"}
-          onClick={() => onNavigate("registration")}
-        >
-          <UserPlus size={19} />
-          <span>Registration</span>
-          {activeTab === "registration" && activePage === "workspace" && <span className="nav-indicator" />}
-        </button>
+        {isAdministrator && (
+          <button
+            type="button"
+            className={activeTab === "registration" && activePage === "workspace" ? "sidebar-link selected" : "sidebar-link"}
+            onClick={() => onNavigate("registration")}
+          >
+            <UserPlus size={19} />
+            <span>Registration</span>
+            {activeTab === "registration" && activePage === "workspace" && <span className="nav-indicator" />}
+          </button>
+        )}
         <button
           type="button"
           className={activeTab === "attendance" && activePage === "workspace" ? "sidebar-link selected" : "sidebar-link"}
@@ -527,12 +548,12 @@ function Sidebar({
       <nav className="sidebar-nav" aria-label="Account navigation">
         <button
           type="button"
-          className={activePage === "settings" || activePage === "courses" ? "sidebar-link selected" : "sidebar-link"}
+          className={activePage === "settings" || activePage === "courses" || activePage === "course-assignments" ? "sidebar-link selected" : "sidebar-link"}
           onClick={onOpenSettings}
         >
           <Settings size={19} />
           <span>Settings</span>
-          {(activePage === "settings" || activePage === "courses" || activePage === "academic-structure" || activePage === "staff-management") && <span className="nav-indicator" />}
+          {(activePage === "settings" || activePage === "courses" || activePage === "academic-structure" || activePage === "staff-management" || activePage === "course-assignments") && <span className="nav-indicator" />}
         </button>
       </nav>
 
@@ -1150,7 +1171,7 @@ function formatSessionDate(value: string) {
   }).format(new Date(year, month - 1, day));
 }
 
-function AttendancePage({ courses }: { courses: CourseRecord[] }) {
+function AttendancePage({ courses, isAdministrator }: { courses: CourseRecord[]; isAdministrator: boolean }) {
   const [formOpen, setFormOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [classTitle, setClassTitle] = useState("");
@@ -1250,7 +1271,7 @@ function AttendancePage({ courses }: { courses: CourseRecord[] }) {
 
       if (error) {
         if (error.code === "42501") {
-          setFormMessage("Your staff account is not authorised to start attendance sessions.");
+          setFormMessage(error.message || "Your staff account is not authorised to start attendance sessions.");
         } else if (error.code === "22023") {
           setFormMessage(error.message || "Check the selected course and session details.");
         } else {
@@ -1294,7 +1315,7 @@ function AttendancePage({ courses }: { courses: CourseRecord[] }) {
           <h1>Attendance</h1>
           <p>Create class sessions, verify eligible students manually and review attendance.</p>
         </div>
-        <button className="primary-button" type="button" onClick={() => {
+        <button className="primary-button" type="button" disabled={courses.length === 0} onClick={() => {
           setFormOpen((open) => !open);
           setFormMessage("");
         }}>
@@ -1302,6 +1323,17 @@ function AttendancePage({ courses }: { courses: CourseRecord[] }) {
           {formOpen ? "Close form" : "Create attendance"}
         </button>
       </div>
+
+      {courses.length === 0 && (
+        <div className="student-form-message" role="status">
+          <Info size={16} />
+          <span>
+            {isAdministrator
+              ? "There are no active courses available. Add or reactivate a course in the Course catalogue."
+              : "No courses have been assigned to your lecturer account yet. Contact the CampusFace administrator."}
+          </span>
+        </div>
+      )}
 
       <section className="stats-grid" aria-label="Attendance overview">
         <StatCard icon={<CalendarDays size={19} />} label="Attendance sessions" value={String(sessions.length)} note="Sessions created" />
@@ -1388,7 +1420,7 @@ function AttendancePage({ courses }: { courses: CourseRecord[] }) {
               <p>When you start the session, CampusFace saves a fixed snapshot of every active student enrolled in the selected course. Later enrolment or student-record changes will not alter this class's eligibility list.</p>
             </div>
             <div className="form-footer">
-              <p><Lock size={14} /> Only active lecturers and administrators can start sessions.</p>
+              <p><Lock size={14} /> Staff can start sessions only for courses available to their account.</p>
               <button type="submit" className="secondary-button" disabled={saving || courses.filter((course) => course.is_active).length === 0}>
                 {saving ? "Starting session..." : "Start attendance"}
                 <ArrowRight size={16} />
