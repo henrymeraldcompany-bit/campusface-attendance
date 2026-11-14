@@ -570,24 +570,129 @@ type PageActionProps = {
   courses: CourseRecord[];
 };
 
-function RegistrationPage({ onComingSoon, courses }: PageActionProps) {
+type StudentRecord = {
+  id: string;
+  full_name: string;
+  registration_number: string;
+  gender: "female" | "male";
+  faculty: string;
+  department: string;
+  student_courses: Array<{
+    courses: { name: string } | null;
+  }>;
+};
+
+function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
   const [formOpen, setFormOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
   const [courseSearch, setCourseSearch] = useState("");
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
+  const [students, setStudents] = useState<StudentRecord[]>([]);
+  const [studentsLoading, setStudentsLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [formMessage, setFormMessage] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [registrationNumber, setRegistrationNumber] = useState("");
+  const [gender, setGender] = useState<"" | "female" | "male">("");
+  const [faculty, setFaculty] = useState("");
+  const [department, setDepartment] = useState("");
 
-  const toggleCourse = (course: string) => {
-    setSelectedCourses((current) =>
-      current.includes(course)
-        ? current.filter((item) => item !== course)
-        : [...current, course]
+  const loadStudents = async () => {
+    setStudentsLoading(true);
+    const { data, error } = await supabase
+      .from("students")
+      .select("id, full_name, registration_number, gender, faculty, department, student_courses(courses(name))")
+      .order("full_name", { ascending: true });
+
+    if (error) {
+      setStudents([]);
+      setFormMessage("Student records could not be loaded. Check your staff connection and database access.");
+    } else {
+      setStudents((data ?? []) as unknown as StudentRecord[]);
+    }
+    setStudentsLoading(false);
+  };
+
+  useEffect(() => {
+    void loadStudents();
+  }, []);
+
+  const toggleCourse = (courseId: string) => {
+    setSelectedCourseIds((current) =>
+      current.includes(courseId)
+        ? current.filter((item) => item !== courseId)
+        : [...current, courseId]
     );
   };
 
-  const preventPreviewSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    onComingSoon("Student registration");
+  const resetForm = () => {
+    setFullName("");
+    setRegistrationNumber("");
+    setGender("");
+    setFaculty("");
+    setDepartment("");
+    setSelectedCourseIds([]);
+    setCourseSearch("");
   };
+
+  const handleRegistrationSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (saving) return;
+
+    if (selectedCourseIds.length === 0) {
+      setFormMessage("Select at least one active course before saving the student.");
+      return;
+    }
+
+    setSaving(true);
+    setFormMessage("");
+
+    try {
+      const { error } = await supabase.rpc("register_student", {
+        p_full_name: fullName.trim(),
+        p_registration_number: registrationNumber.trim(),
+        p_gender: gender,
+        p_faculty: faculty.trim(),
+        p_department: department.trim(),
+        p_course_ids: selectedCourseIds,
+      });
+
+      if (error) {
+        if (error.code === "23505") {
+          setFormMessage("That registration number is already in the student directory. Check the number and try again.");
+        } else if (error.code === "42501") {
+          setFormMessage("Your staff account is not authorised to register students. Contact the CampusFace administrator.");
+        } else if (error.code === "22023" || error.code === "23514") {
+          setFormMessage(error.message || "Check the student details and selected courses.");
+        } else {
+          setFormMessage("The student could not be saved. Check your connection and try again.");
+        }
+        return;
+      }
+
+      resetForm();
+      setFormOpen(false);
+      setFormMessage("Student registered successfully, with the selected course enrolments saved.");
+      await loadStudents();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredStudents = students.filter((student) => {
+    if (!normalizedSearch) return true;
+    return [
+      student.full_name,
+      student.registration_number,
+      student.faculty,
+      student.department,
+    ].some((value) => value.toLowerCase().includes(normalizedSearch));
+  });
+
+  const filteredCourses = courses.filter((course) =>
+    course.name.toLowerCase().includes(courseSearch.trim().toLowerCase())
+  );
 
   return (
     <>
@@ -595,44 +700,80 @@ function RegistrationPage({ onComingSoon, courses }: PageActionProps) {
         <div>
           <div className="eyebrow">STUDENT RECORDS</div>
           <h1>Registration</h1>
-          <p>Register students, organise course enrolments and prepare face profiles.</p>
+          <p>Register students, assign their active courses and maintain the student directory.</p>
         </div>
-        <button className="primary-button" type="button" onClick={() => setFormOpen((open) => !open)}>
+        <button className="primary-button" type="button" onClick={() => {
+          setFormOpen((open) => !open);
+          setFormMessage("");
+        }}>
           {formOpen ? <X size={18} /> : <Plus size={18} />}
           {formOpen ? "Close form" : "Register student"}
         </button>
       </div>
 
       <section className="stats-grid" aria-label="Registration overview">
-        <StatCard icon={<Users size={19} />} label="Registered students" value="0" note="Student records" />
+        <StatCard icon={<Users size={19} />} label="Registered students" value={String(students.length)} note="Saved student records" />
         <StatCard icon={<BookOpen size={19} />} label="Available courses" value={String(courses.length)} note="Active catalogue courses" />
-        <StatCard icon={<Camera size={19} />} label="Face profiles" value="0" note="Setup planned for Task 7" />
+        <StatCard icon={<Camera size={19} />} label="Face profiles" value="0" note="Not part of this task" />
       </section>
+
+      {formMessage && (
+        <div className="student-form-message" role="status">
+          <Info size={16} />
+          <span>{formMessage}</span>
+          <button type="button" aria-label="Dismiss message" onClick={() => setFormMessage("")}><X size={15} /></button>
+        </div>
+      )}
 
       {formOpen && (
         <section className="panel registration-form-panel">
           <div className="panel-heading">
             <div>
-              <div className="eyebrow">NEW RECORD</div>
+              <div className="eyebrow">NEW STUDENT RECORD</div>
               <h2>Student information</h2>
-              <p>Complete the academic details before face registration is introduced.</p>
+              <p>Enter the student's academic details and select every course they are enrolled in.</p>
             </div>
-            <span className="step-tag">STEP 1 OF 2</span>
+            <span className="step-tag">STAFF ENTRY</span>
           </div>
 
-          <form onSubmit={preventPreviewSubmit}>
+          <form onSubmit={handleRegistrationSubmit}>
             <div className="form-grid">
               <label className="field full-field">
                 <span>Full name</span>
-                <input type="text" placeholder="Enter student's full name" autoComplete="off" />
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(event) => setFullName(event.target.value)}
+                  placeholder="Enter student's full name"
+                  minLength={2}
+                  maxLength={120}
+                  autoComplete="off"
+                  required
+                  disabled={saving}
+                />
               </label>
               <label className="field">
                 <span>Registration number</span>
-                <input type="text" placeholder="e.g. 2026/000000" autoComplete="off" />
+                <input
+                  type="text"
+                  value={registrationNumber}
+                  onChange={(event) => setRegistrationNumber(event.target.value)}
+                  placeholder="e.g. 2026/000000"
+                  minLength={2}
+                  maxLength={60}
+                  autoComplete="off"
+                  required
+                  disabled={saving}
+                />
               </label>
               <label className="field">
                 <span>Gender</span>
-                <select defaultValue="">
+                <select
+                  value={gender}
+                  onChange={(event) => setGender(event.target.value as "" | "female" | "male")}
+                  required
+                  disabled={saving}
+                >
                   <option value="" disabled>Select gender</option>
                   <option value="female">Female</option>
                   <option value="male">Male</option>
@@ -640,11 +781,31 @@ function RegistrationPage({ onComingSoon, courses }: PageActionProps) {
               </label>
               <label className="field">
                 <span>Faculty</span>
-                <input type="text" placeholder="Enter faculty" autoComplete="off" />
+                <input
+                  type="text"
+                  value={faculty}
+                  onChange={(event) => setFaculty(event.target.value)}
+                  placeholder="Enter faculty"
+                  minLength={2}
+                  maxLength={120}
+                  autoComplete="off"
+                  required
+                  disabled={saving}
+                />
               </label>
               <label className="field">
                 <span>Department</span>
-                <input type="text" placeholder="Enter department" autoComplete="off" />
+                <input
+                  type="text"
+                  value={department}
+                  onChange={(event) => setDepartment(event.target.value)}
+                  placeholder="Enter department"
+                  minLength={2}
+                  maxLength={120}
+                  autoComplete="off"
+                  required
+                  disabled={saving}
+                />
               </label>
             </div>
 
@@ -652,9 +813,9 @@ function RegistrationPage({ onComingSoon, courses }: PageActionProps) {
               <div className="course-picker-heading">
                 <div>
                   <strong>Courses offered</strong>
-                  <span>Select all courses this student is enrolled in.</span>
+                  <span>Select all active courses this student is enrolled in.</span>
                 </div>
-                <span className="selection-count">{selectedCourses.length} selected</span>
+                <span className="selection-count">{selectedCourseIds.length} selected</span>
               </div>
               <label className="course-search-wrap">
                 <Search size={15} />
@@ -663,24 +824,24 @@ function RegistrationPage({ onComingSoon, courses }: PageActionProps) {
                   onChange={(event) => setCourseSearch(event.target.value)}
                   placeholder="Find a course"
                   aria-label="Search available courses"
+                  disabled={saving}
                 />
               </label>
               <div className="course-options">
-                {courses
-                  .filter((course) => course.name.toLowerCase().includes(courseSearch.trim().toLowerCase()))
-                  .map((course) => (
-                    <label key={course.id} className={selectedCourses.includes(course.name) ? "course-option checked" : "course-option"}>
-                      <input
-                        type="checkbox"
-                        checked={selectedCourses.includes(course.name)}
-                        onChange={() => toggleCourse(course.name)}
-                      />
-                      <span className="custom-check">{selectedCourses.includes(course.name) && <Check size={13} />}</span>
-                      <span>{course.name}</span>
-                    </label>
-                  ))}
-                {courses.length === 0 && (
-                  <p className="course-list-empty">No active courses are available. Ask an administrator to add or activate courses.</p>
+                {filteredCourses.map((course) => (
+                  <label key={course.id} className={selectedCourseIds.includes(course.id) ? "course-option checked" : "course-option"}>
+                    <input
+                      type="checkbox"
+                      checked={selectedCourseIds.includes(course.id)}
+                      onChange={() => toggleCourse(course.id)}
+                      disabled={saving}
+                    />
+                    <span className="custom-check">{selectedCourseIds.includes(course.id) && <Check size={13} />}</span>
+                    <span>{course.name}</span>
+                  </label>
+                ))}
+                {filteredCourses.length === 0 && (
+                  <p className="course-list-empty">No active courses match this search.</p>
                 )}
               </div>
             </div>
@@ -688,15 +849,18 @@ function RegistrationPage({ onComingSoon, courses }: PageActionProps) {
             <div className="face-registration-note">
               <div className="face-note-icon"><Camera size={20} /></div>
               <div>
-                <strong>Face registration comes next</strong>
-                <p>Camera checks, student permission and biometric template handling will be added in Task 7, after the secure registration workflow is ready.</p>
+                <strong>Face registration is a separate step</strong>
+                <p>This form does not collect face images or biometric templates. Face registration will only be introduced after the privacy and consent safeguards are addressed.</p>
               </div>
               <span className="locked-pill"><Lock size={12} /> Not active</span>
             </div>
 
             <div className="form-footer">
-              <p><Lock size={14} /> Saving is disabled in this preview. No student information is stored.</p>
-              <button type="submit" className="secondary-button">Save student <ArrowRight size={16} /></button>
+              <p><ShieldCheck size={14} /> Student information is saved securely for authorised staff only.</p>
+              <button type="submit" className="secondary-button" disabled={saving || courses.length === 0}>
+                {saving ? "Saving student..." : "Save student"}
+                <ArrowRight size={16} />
+              </button>
             </div>
           </form>
         </section>
@@ -719,24 +883,45 @@ function RegistrationPage({ onComingSoon, courses }: PageActionProps) {
           </div>
         </div>
 
-        <div className="table-scroll">
-          <table className="records-table">
-            <thead>
-              <tr>
-                <th>STUDENT</th>
-                <th>REGISTRATION NUMBER</th>
-                <th>FACULTY / DEPARTMENT</th>
-                <th>COURSES</th>
-                <th>FACE PROFILE</th>
-              </tr>
-            </thead>
-          </table>
-        </div>
-        <EmptyState
-          icon={<Users size={25} />}
-          title={search ? "No matching student records" : "No students registered yet"}
-          description={search ? "The directory is empty in preview mode. Student search will work with connected records." : "Use Register student to preview the student details form. Records will appear here after the database is connected."}
-        />
+        {studentsLoading ? (
+          <div className="student-directory-loading">Loading student records...</div>
+        ) : filteredStudents.length > 0 ? (
+          <div className="table-scroll">
+            <table className="records-table">
+              <thead>
+                <tr>
+                  <th>STUDENT</th>
+                  <th>REGISTRATION NUMBER</th>
+                  <th>FACULTY / DEPARTMENT</th>
+                  <th>COURSES</th>
+                  <th>FACE PROFILE</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStudents.map((student) => {
+                  const courseNames = (student.student_courses ?? [])
+                    .map((enrolment) => enrolment.courses?.name)
+                    .filter((name): name is string => Boolean(name));
+                  return (
+                    <tr key={student.id}>
+                      <td><strong className="student-name-cell">{student.full_name}</strong></td>
+                      <td>{student.registration_number}</td>
+                      <td><span className="student-academic-cell">{student.faculty}<small>{student.department}</small></span></td>
+                      <td>{courseNames.length ? courseNames.join(", ") : "No course listed"}</td>
+                      <td><span className="student-face-pending">Not registered</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={<Users size={25} />}
+            title={normalizedSearch ? "No matching student records" : "No students registered yet"}
+            description={normalizedSearch ? "Try another name, registration number, faculty or department." : "Use Register student to create the first student record. Course enrolments will be saved with the student."}
+          />
+        )}
       </section>
     </>
   );
