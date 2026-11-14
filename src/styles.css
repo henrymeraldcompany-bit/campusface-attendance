@@ -1275,3 +1275,71 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .settings-signout-area { align-items: flex-start; flex-direction: column; }
   .settings-signout-button { width: 100%; }
 }
+
+
+/* Connected student registration and directory */
+.student-form-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(var(--accent-rgb, 22,123,123), .2);
+  border-radius: 10px;
+  color: var(--teal-dark);
+  background: var(--teal-light);
+  font-size: 10px;
+  line-height: 1.55;
+}
+.student-form-message > svg { flex: 0 0 auto; margin-top: 1px; }
+.student-form-message span { flex: 1; }
+.student-form-message button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  margin: -4px -5px 0 0;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  background: transparent;
+}
+.student-form-message button:hover { background: rgba(var(--accent-rgb, 22,123,123), .12); }
+.student-directory-loading {
+  padding: 32px 15px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+.student-name-cell { color: var(--ink); font-weight: 750; }
+.student-academic-cell { display: grid; gap: 3px; color: var(--ink); }
+.student-academic-cell small { color: var(--muted); font-size: 9px; }
+.student-face-pending {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 20px;
+  color: #866a2c;
+  background: #fbf4e5;
+  font-size: 8px;
+  font-weight: 750;
+}
+:root[data-theme="dark"] .student-form-message {
+  border-color: rgba(var(--accent-rgb, 22,123,123), .3);
+  color: #d2ebe8;
+  background: rgba(var(--accent-rgb, 22,123,123), .14);
+}
+:root[data-theme="dark"] .student-face-pending {
+  color: #ead7a1;
+  background: #3c3423;
+}
+:root[data-theme="dark"] .student-name-cell,
+:root[data-theme="dark"] .student-academic-cell { color: #e4edf5; }
+
+@media (max-width: 760px) {
+  .student-form-message { padding: 10px 11px; font-size: 9px; }
+  .student-directory-loading { font-size: 9px; }
+  .student-face-pending { font-size: 7px; }
+}
