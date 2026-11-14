@@ -432,7 +432,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
               {activeTab === "registration" && isAdministrator ? (
                 <RegistrationPage courses={courses} onOpenFaceReadiness={openFaceReadiness} />
               ) : (
-                <AttendancePage courses={activeCourses} isAdministrator={isAdministrator} />
+                <AttendancePage courses={activeCourses} isAdministrator={isAdministrator} staffProfile={staffProfile} />
               )}
             </>
           )}
@@ -1171,7 +1171,7 @@ function formatSessionDate(value: string) {
   }).format(new Date(year, month - 1, day));
 }
 
-function AttendancePage({ courses, isAdministrator }: { courses: CourseRecord[]; isAdministrator: boolean }) {
+function AttendancePage({ courses, isAdministrator, staffProfile }: { courses: CourseRecord[]; isAdministrator: boolean; staffProfile: StaffProfile }) {
   const [formOpen, setFormOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [classTitle, setClassTitle] = useState("");
@@ -1309,6 +1309,22 @@ function AttendancePage({ courses, isAdministrator }: { courses: CourseRecord[];
 
   return (
     <>
+      {!isAdministrator && (
+        <section className="lecturer-welcome-card" aria-label="Lecturer welcome and assigned courses">
+          <div className="lecturer-welcome-copy">
+            <div className="eyebrow">WELCOME TO CAMPUSFACE</div>
+            <h2>Welcome, {staffProfile.full_name}</h2>
+            <p>Your administrator assigned these courses to your lecturer account.</p>
+          </div>
+          <div className="lecturer-welcome-courses">
+            {courses.length > 0 ? courses.map((course) => (
+              <span className="lecturer-welcome-course" key={course.id}>{course.name}</span>
+            )) : (
+              <span className="lecturer-welcome-no-courses">No courses assigned yet. Contact your administrator.</span>
+            )}
+          </div>
+        </section>
+      )}
       <div className="page-heading">
         <div>
           <div className="eyebrow">CLASS MANAGEMENT</div>
