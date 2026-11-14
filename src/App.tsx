@@ -171,17 +171,18 @@ function App() {
   };
 
   const handleInstall = async () => {
-    if (!installPrompt) {
-      setToast("On Android, open your browser menu and choose “Install app” or “Add to Home screen” when available.");
-      return;
-    }
+    const promptEvent = installPrompt;
+    if (!promptEvent || isInstalled) return;
 
-    await installPrompt.prompt();
-    const result = await installPrompt.userChoice;
-    if (result.outcome === "accepted") {
-      setToast("CampusFace installation accepted.");
-    }
+    // The browser's install event is single-use. Do not fall back to
+    // "Add to Home screen", which can create only a shortcut.
     setInstallPrompt(null);
+    await promptEvent.prompt();
+    const result = await promptEvent.userChoice;
+
+    if (result.outcome === "accepted") {
+      setIsInstalled(true);
+    }
   };
 
   const switchTab = (tab: MainTab) => {
@@ -230,7 +231,7 @@ function App() {
             >
               <Settings size={17} />
             </button>
-            {!isInstalled && (
+            {!isInstalled && installPrompt && (
               <button className="install-button" onClick={handleInstall} type="button">
                 <ArrowRight size={16} />
                 <span>Install app</span>
