@@ -970,7 +970,7 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
           <div className="student-directory-loading">Loading student records...</div>
         ) : filteredStudents.length > 0 ? (
           <>
-            <div className="table-scroll student-directory-desktop">
+            <div className="table-scroll">
               <table className="records-table">
                 <thead>
                   <tr>
@@ -1019,48 +1019,6 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
                   })}
                 </tbody>
               </table>
-            </div>
-
-            <div className="student-directory-mobile">
-              {filteredStudents.map((student) => {
-                const courseNames = (student.student_courses ?? [])
-                  .map((enrolment) => enrolment.courses?.name)
-                  .filter((name): name is string => Boolean(name));
-                return (
-                  <article className={student.is_active ? "student-mobile-card" : "student-mobile-card archived"} key={student.id}>
-                    <div className="student-mobile-card-head">
-                      <div className="student-mobile-identity">
-                        <strong>{student.full_name}</strong>
-                        <span>{student.registration_number}</span>
-                      </div>
-                      <span className={student.is_active ? "student-status-pill active" : "student-status-pill archived"}>
-                        {student.is_active ? "Active" : "Archived"}
-                      </span>
-                    </div>
-                    <div className="student-mobile-details">
-                      <div><span>Faculty</span><strong>{student.faculty}</strong></div>
-                      <div><span>Department</span><strong>{student.department}</strong></div>
-                      <div className="student-mobile-courses"><span>Courses</span><strong>{courseNames.length ? courseNames.join(", ") : "No course listed"}</strong></div>
-                    </div>
-                    <div className="student-mobile-face-row">
-                      <span><Camera size={13} /> Face profile not registered</span>
-                      <button className="student-face-review-button" type="button" onClick={() => onOpenFaceReadiness(student)}>Review</button>
-                    </div>
-                    <div className="student-mobile-actions">
-                      <button className="student-edit-button" type="button" onClick={() => setEditingStudent(student)}>
-                        <Pencil size={13} /> Edit record
-                      </button>
-                      <button
-                        className={student.is_active ? "student-archive-button" : "student-reactivate-button"}
-                        type="button"
-                        onClick={() => setStudentStatusTarget(student)}
-                      >
-                        {student.is_active ? "Archive student" : "Reactivate"}
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
             </div>
           </>
         ) : (
