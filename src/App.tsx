@@ -59,8 +59,17 @@ function darkenHex(hex: string, amount = 0.18) {
     .join("");
 }
 
-const ANDROID_APK_DOWNLOAD =
-  "https://github.com/henrymeraldcompany-bit/campusface-attendance/releases/latest/download/CampusFace-Attendance.apk";
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform?: string }>;
+};
+
+function isRunningAsInstalledApp() {
+  if (typeof window === "undefined") return false;
+  const modes = ["standalone", "fullscreen", "minimal-ui"];
+  return modes.some((mode) => window.matchMedia(`(display-mode: ${mode})`).matches) ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
 
 const COURSES = [
   "English",
@@ -77,6 +86,8 @@ const COURSES = [
 function App() {
   const [activeTab, setActiveTab] = useState<MainTab>("registration");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(isRunningAsInstalledApp);
   const [toast, setToast] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>(() => {
@@ -94,6 +105,33 @@ function App() {
       return "#167b7b";
     }
   });
+
+  useEffect(() => {
+    const displayModeQueries = ["standalone", "fullscreen", "minimal-ui"].map((mode) =>
+      window.matchMedia(`(display-mode: ${mode})`)
+    );
+
+    const updateInstalledState = () => setIsInstalled(isRunningAsInstalledApp());
+    const captureInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    };
+
+    updateInstalledState();
+    window.addEventListener("beforeinstallprompt", captureInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+    displayModeQueries.forEach((query) => query.addEventListener("change", updateInstalledState));
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", captureInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+      displayModeQueries.forEach((query) => query.removeEventListener("change", updateInstalledState));
+    };
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -117,6 +155,25 @@ function App() {
     const timer = window.setTimeout(() => setToast(""), 4200);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  const handleInstall = async () => {
+    if (isInstalled) return;
+
+    const promptEvent = installPrompt;
+    if (!promptEvent) {
+      setToast("Chrome has not made the installation prompt available yet. Open this website in Chrome and use the browser menu's “Install app” option when it appears. Do not choose “Add to Home screen”.");
+      return;
+    }
+
+    setInstallPrompt(null);
+    await promptEvent.prompt();
+    const choice = await promptEvent.userChoice;
+
+    if (choice.outcome === "accepted") {
+      setIsInstalled(true);
+      setToast("CampusFace installation accepted.");
+    }
+  };
 
   const showComingSoon = (feature: string) => {
     setToast(`${feature} will be connected in a later development task.`);
@@ -170,17 +227,11 @@ function App() {
             >
               <Settings size={17} />
             </button>
-            {typeof window !== "undefined" && !window.location.protocol.startsWith("capacitor:") && (
-              <a
-                className="install-button"
-                href={ANDROID_APK_DOWNLOAD}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Download the CampusFace Android APK"
-              >
+            {!isInstalled && (
+              <button className="install-button" onClick={handleInstall} type="button">
                 <Download size={16} />
                 <span>Install app</span>
-              </a>
+              </button>
             )}
           </div>
         </header>
