@@ -397,7 +397,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
               </div>
 
               {activeTab === "registration" ? (
-                <RegistrationPage courses={activeCourses} />
+                <RegistrationPage courses={courses} />
               ) : (
                 <AttendancePage onComingSoon={showComingSoon} courses={activeCourses} />
               )}
@@ -760,6 +760,7 @@ function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
   const filteredCourses = courses.filter((course) =>
     course.is_active && course.name.toLowerCase().includes(courseSearch.trim().toLowerCase())
   );
+  const activeCourseCount = courses.filter((course) => course.is_active).length;
   const activeStudentCount = students.filter((student) => student.is_active).length;
   const archivedStudentCount = students.length - activeStudentCount;
 
@@ -782,7 +783,7 @@ function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
 
       <section className="stats-grid" aria-label="Registration overview">
         <StatCard icon={<Users size={19} />} label="Active students" value={String(activeStudentCount)} note="Available student records" />
-        <StatCard icon={<BookOpen size={19} />} label="Available courses" value={String(courses.length)} note="Active catalogue courses" />
+        <StatCard icon={<BookOpen size={19} />} label="Available courses" value={String(activeCourseCount)} note="Active catalogue courses" />
         <StatCard icon={<Lock size={19} />} label="Archived students" value={String(archivedStudentCount)} note="Retained historical records" />
       </section>
 
@@ -926,7 +927,7 @@ function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
 
             <div className="form-footer">
               <p><ShieldCheck size={14} /> Student information is saved securely for authorised staff only.</p>
-              <button type="submit" className="secondary-button" disabled={saving || courses.length === 0}>
+              <button type="submit" className="secondary-button" disabled={saving || activeCourseCount === 0}>
                 {saving ? "Saving student..." : "Save student"}
                 <ArrowRight size={16} />
               </button>
