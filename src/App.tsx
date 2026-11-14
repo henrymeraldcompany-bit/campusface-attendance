@@ -11,6 +11,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Clock,
+  Download,
   FileText,
   GraduationCap,
   Info,
@@ -58,21 +59,8 @@ function darkenHex(hex: string, amount = 0.18) {
     .join("");
 }
 
-function isRunningAsInstalledApp() {
-  if (typeof window === "undefined") return false;
-
-  const displayModes = ["standalone", "fullscreen", "minimal-ui"];
-  const launchedAsPwa = displayModes.some((mode) =>
-    window.matchMedia(`(display-mode: ${mode})`).matches
-  );
-  const iosStandalone = (navigator as Navigator & { standalone?: boolean }).standalone === true;
-
-  return launchedAsPwa || iosStandalone;
-}
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform?: string }>;
-};
+const ANDROID_APK_DOWNLOAD =
+  "https://github.com/henrymeraldcompany-bit/campusface-attendance/releases/latest/download/CampusFace-Attendance.apk";
 
 const COURSES = [
   "English",
@@ -89,8 +77,6 @@ const COURSES = [
 function App() {
   const [activeTab, setActiveTab] = useState<MainTab>("registration");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(isRunningAsInstalledApp);
   const [toast, setToast] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>(() => {
@@ -127,38 +113,6 @@ function App() {
   }, [theme, accentColor]);
 
   useEffect(() => {
-    const updateInstalledState = () => {
-      setIsInstalled(isRunningAsInstalledApp());
-    };
-
-    const captureInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setIsInstalled(false);
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-    };
-
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setInstallPrompt(null);
-    };
-
-    const displayModeQueries = ["standalone", "fullscreen", "minimal-ui"].map((mode) =>
-      window.matchMedia(`(display-mode: ${mode})`)
-    );
-
-    updateInstalledState();
-    window.addEventListener("beforeinstallprompt", captureInstallPrompt);
-    window.addEventListener("appinstalled", handleAppInstalled);
-    displayModeQueries.forEach((query) => query.addEventListener("change", updateInstalledState));
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", captureInstallPrompt);
-      window.removeEventListener("appinstalled", handleAppInstalled);
-      displayModeQueries.forEach((query) => query.removeEventListener("change", updateInstalledState));
-    };
-  }, []);
-
-  useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(""), 4200);
     return () => window.clearTimeout(timer);
@@ -168,21 +122,6 @@ function App() {
     setToast(`${feature} will be connected in a later development task.`);
     setSettingsOpen(false);
     setMobileMenuOpen(false);
-  };
-
-  const handleInstall = async () => {
-    const promptEvent = installPrompt;
-    if (!promptEvent || isInstalled) return;
-
-    // The browser's install event is single-use. Do not fall back to
-    // "Add to Home screen", which can create only a shortcut.
-    setInstallPrompt(null);
-    await promptEvent.prompt();
-    const result = await promptEvent.userChoice;
-
-    if (result.outcome === "accepted") {
-      setIsInstalled(true);
-    }
   };
 
   const switchTab = (tab: MainTab) => {
@@ -231,11 +170,17 @@ function App() {
             >
               <Settings size={17} />
             </button>
-            {!isInstalled && installPrompt && (
-              <button className="install-button" onClick={handleInstall} type="button">
-                <ArrowRight size={16} />
+            {typeof window !== "undefined" && !window.location.protocol.startsWith("capacitor:") && (
+              <a
+                className="install-button"
+                href={ANDROID_APK_DOWNLOAD}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Download the CampusFace Android APK"
+              >
+                <Download size={16} />
                 <span>Install app</span>
-              </button>
+              </a>
             )}
           </div>
         </header>
