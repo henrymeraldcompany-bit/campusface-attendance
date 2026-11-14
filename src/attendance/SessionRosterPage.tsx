@@ -15,6 +15,11 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import {
+  calculateAttendanceSummary,
+  csvCell,
+  reportFileSlug,
+} from "../lib/attendance-report";
 
 export type SessionRosterSummary = {
   id: string;
@@ -64,22 +69,6 @@ function formatTime(value: string) {
     hour12: true,
     timeZone: "Africa/Lagos",
   }).format(new Date(value));
-}
-
-function csvCell(value: string | number | null | undefined) {
-  const raw = String(value ?? "");
-  // Prevent spreadsheet formula execution when a text field begins with a formula marker.
-  const safe = /^\s*[=+\-@]/.test(raw) ? `'${raw}` : raw;
-  return `"${safe.replace(/"/g, '""')}"`;
-}
-
-function reportFileSlug(value: string) {
-  return value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 60) || "class";
 }
 
 export function SessionRosterPage({ session, onBack }: Props) {
@@ -174,18 +163,17 @@ export function SessionRosterPage({ session, onBack }: Props) {
     });
   }, [students, normalizedSearch, rosterFilter, attendanceByStudent]);
 
-  const presentCount = Object.keys(attendanceByStudent).length;
-  const absentCount = Math.max(students.length - presentCount, 0);
-  const attendanceRate = students.length > 0 ? (presentCount / students.length) * 100 : 0;
+  const {
+    presentStudents,
+    absentStudents,
+    presentCount,
+    absentCount,
+    attendanceRate,
+  } = useMemo(
+    () => calculateAttendanceSummary(students, attendanceByStudent),
+    [students, attendanceByStudent],
+  );
   const sessionEnded = sessionStatus === "ended";
-  const presentStudents = useMemo(
-    () => students.filter((student) => Boolean(attendanceByStudent[student.student_id])),
-    [students, attendanceByStudent],
-  );
-  const absentStudents = useMemo(
-    () => students.filter((student) => !attendanceByStudent[student.student_id]),
-    [students, attendanceByStudent],
-  );
 
   const confirmMarkPresent = async () => {
     if (!pendingStudent || marking) return;
