@@ -2814,3 +2814,151 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     justify-content: center;
   }
 }
+
+
+/* Course selection is part of the lecturer invitation form */
+.staff-invite-course-picker {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 13px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--canvas);
+}
+.staff-invite-course-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.staff-invite-course-heading > div {
+  display: grid;
+  gap: 5px;
+}
+.staff-invite-course-heading strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+.staff-invite-course-heading span {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.staff-invite-course-heading small {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border-radius: 16px;
+  color: var(--teal-dark);
+  background: var(--teal-light);
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.staff-invite-course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 8px;
+}
+.staff-invite-course-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--surface);
+  cursor: pointer;
+}
+.staff-invite-course-option:has(input:checked) {
+  border-color: rgba(var(--accent-rgb, 22,123,123), .55);
+  background: var(--teal-light);
+}
+.staff-invite-course-option input {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--teal);
+}
+.staff-invite-course-option span {
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 700;
+}
+.lecturer-welcome-card {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding: 19px 21px;
+  border: 1px solid rgba(var(--accent-rgb, 22,123,123), .2);
+  border-radius: 13px;
+  background: var(--surface);
+}
+.lecturer-welcome-copy h2 {
+  margin: 5px 0 0;
+  color: var(--ink);
+  font: 800 20px Manrope, sans-serif;
+  letter-spacing: -.035em;
+}
+.lecturer-welcome-copy p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.lecturer-welcome-courses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lecturer-welcome-course {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 11px;
+  border: 1px solid rgba(var(--accent-rgb, 22,123,123), .18);
+  border-radius: 20px;
+  color: var(--teal-dark);
+  background: var(--teal-light);
+  font-size: 10px;
+  font-weight: 800;
+}
+.lecturer-welcome-no-courses {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+:root[data-theme="dark"] .staff-invite-course-picker {
+  border-color: #34495a;
+  background: #102235;
+}
+:root[data-theme="dark"] .staff-invite-course-option {
+  border-color: #34495a;
+  background: #0f2030;
+}
+:root[data-theme="dark"] .staff-invite-course-option:has(input:checked) {
+  border-color: rgba(var(--accent-rgb, 22,123,123), .7);
+  background: rgba(var(--accent-rgb, 22,123,123), .16);
+}
+:root[data-theme="dark"] .lecturer-welcome-card {
+  border-color: #34495a;
+  background: #102235;
+}
+@media (max-width: 600px) {
+  .staff-invite-course-grid {
+    grid-template-columns: 1fr;
+  }
+  .staff-invite-course-picker {
+    padding: 12px;
+  }
+  .lecturer-welcome-card {
+    padding: 15px;
+  }
+  .lecturer-welcome-copy h2 {
+    font-size: 17px;
+  }
+}
