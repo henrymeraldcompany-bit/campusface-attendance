@@ -1,4 +1,4 @@
-name: Deploy CampusFace Web App
+name: Deploy CampusFace PWA
 
 on:
   push:
@@ -30,21 +30,28 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
 
-      - name: Build web app
+      - name: Build CampusFace PWA
         run: npm run build
+
+      - name: Verify PWA manifest and service worker
+        run: |
+          test -s dist/manifest.webmanifest
+          test -s dist/sw.js
+          grep -q '"display":"standalone"' dist/manifest.webmanifest
+          echo "PWA manifest and service worker are present."
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
         with:
           enablement: true
 
-      - name: Upload web artifact
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
 
-      - name: Deploy web app
+      - name: Deploy CampusFace PWA
         id: deployment
         uses: actions/deploy-pages@v4
