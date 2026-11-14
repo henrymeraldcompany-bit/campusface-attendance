@@ -1811,3 +1811,59 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .face-requirement-state { padding-top: 5px; }
   .face-privacy-notice p { font-size: 8px; }
 }
+
+
+/* Preserve the original student directory table and align every value
+   directly below the matching column heading at all screen widths. */
+.records-panel .table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  padding: 0 16px 18px;
+  box-sizing: border-box;
+}
+.records-table {
+  width: 100%;
+  min-width: 993px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  text-align: left;
+}
+.records-table th,
+.records-table td {
+  box-sizing: border-box;
+  padding: 12px;
+  text-align: left;
+  vertical-align: middle;
+}
+.records-table th:first-child,
+.records-table td:first-child {
+  padding-left: 12px;
+}
+.records-table th:nth-child(1),
+.records-table td:nth-child(1) { width: 125px; }
+.records-table th:nth-child(2),
+.records-table td:nth-child(2) { width: 158px; }
+.records-table th:nth-child(3),
+.records-table td:nth-child(3) { width: 160px; }
+.records-table th:nth-child(4),
+.records-table td:nth-child(4) { width: 175px; }
+.records-table th:nth-child(5),
+.records-table td:nth-child(5) { width: 140px; }
+.records-table th:nth-child(6),
+.records-table td:nth-child(6) { width: 95px; }
+.records-table th:nth-child(7),
+.records-table td:nth-child(7) { width: 140px; }
+.records-table th {
+  height: 42px;
+  padding-top: 0;
+  padding-bottom: 0;
+  white-space: nowrap;
+}
+.records-table td { border-bottom: 1px solid var(--line); }
+.records-table tbody tr:last-child td { border-bottom: 0; }
+.student-directory-mobile { display: none !important; }
+
+@media (max-width: 760px) {
+  .records-panel .table-scroll { padding: 0 16px 18px; }
+  .student-directory-mobile { display: none !important; }
+}
