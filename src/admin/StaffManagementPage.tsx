@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { BookOpen, Mail, RefreshCw, ShieldCheck, UserPlus, Users, X } from "lucide-react";
+import { Mail, RefreshCw, ShieldCheck, UserPlus, Users, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 type StaffMember = {
