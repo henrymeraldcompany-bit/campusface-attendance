@@ -2199,3 +2199,163 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   color: #d6e1ea;
   background: #142536;
 }
+
+
+/* Session roster and student identification foundation */
+.session-roster-heading { align-items: center; }
+.session-roster-heading .secondary-button { flex: 0 0 auto; white-space: nowrap; }
+.session-roster-summary {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.session-roster-title { min-width: 0; flex: 1; }
+.session-roster-title h2 {
+  margin: 4px 0 5px;
+  color: var(--ink);
+  font: 800 17px/1.3 Manrope, sans-serif;
+}
+.session-roster-title p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
+.session-roster-count {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 7px;
+  color: var(--teal);
+}
+.session-roster-count strong { color: var(--ink); font-size: 20px; font-weight: 850; }
+.session-roster-count span { grid-column: 1 / -1; color: var(--muted); font-size: 8px; }
+.session-identification-panel .panel-heading > svg { flex: 0 0 auto; color: var(--teal); }
+.session-roster-search { width: 100%; margin: 15px 0 12px; }
+.session-snapshot-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid rgba(var(--accent-rgb, 22,123,123), .18);
+  border-radius: 9px;
+  color: var(--teal-dark);
+  background: var(--teal-light);
+  font-size: 9px;
+  line-height: 1.6;
+}
+.session-snapshot-note svg { flex: 0 0 auto; margin-top: 1px; }
+.face-scan-locked-notice {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #ead8b7;
+  border-radius: 10px;
+  background: #fffaf0;
+}
+.face-scan-locked-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9px;
+  color: #9a6821;
+  background: #fbf1dc;
+}
+.face-scan-locked-notice > div:nth-child(2) { min-width: 0; flex: 1; }
+.face-scan-locked-notice strong { display: block; color: #76541e; font-size: 10px; }
+.face-scan-locked-notice p { margin: 4px 0 0; color: #8a7756; font-size: 8px; line-height: 1.55; }
+.face-scan-locked-notice .face-gate-pill { flex: 0 0 auto; }
+.session-roster-list { display: grid; }
+.session-roster-student {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+}
+.session-roster-number {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--muted);
+  background: var(--canvas);
+  font-size: 9px;
+  font-weight: 800;
+}
+.session-roster-student-main { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.session-roster-student-main strong { overflow-wrap: anywhere; color: var(--ink); font-size: 11px; }
+.session-roster-student-main span { color: var(--muted); font-size: 9px; }
+.session-roster-student-main small { color: var(--muted); font-size: 8px; }
+.session-roster-face-status {
+  color: var(--muted);
+  font-size: 8px;
+  text-align: right;
+}
+.session-roster-empty { padding: 28px 15px; color: var(--muted); font-size: 10px; text-align: center; }
+.session-view-roster-button {
+  display: inline-flex;
+  min-height: 31px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid rgba(var(--accent-rgb, 22,123,123), .22);
+  border-radius: 7px;
+  color: var(--teal-dark);
+  background: var(--teal-light);
+  font-size: 9px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.session-view-roster-button:hover { border-color: var(--teal); }
+.session-view-roster-button svg { flex: 0 0 auto; }
+.attendance-table { min-width: 900px; }
+.attendance-table th:nth-child(1),
+.attendance-table td:nth-child(1) { width: 175px; }
+.attendance-table th:nth-child(2),
+.attendance-table td:nth-child(2) { width: 135px; }
+.attendance-table th:nth-child(3),
+.attendance-table td:nth-child(3) { width: 140px; }
+.attendance-table th:nth-child(4),
+.attendance-table td:nth-child(4) { width: 150px; }
+.attendance-table th:nth-child(5),
+.attendance-table td:nth-child(5) { width: 105px; }
+.attendance-table th:nth-child(6),
+.attendance-table td:nth-child(6) { width: 130px; }
+:root[data-theme="dark"] .face-scan-locked-notice {
+  border-color: #594a2f;
+  background: #2d281e;
+}
+:root[data-theme="dark"] .face-scan-locked-icon {
+  color: #eacb8e;
+  background: #3b3121;
+}
+:root[data-theme="dark"] .face-scan-locked-notice strong { color: #f0d8a7; }
+:root[data-theme="dark"] .face-scan-locked-notice p { color: #c2b28f; }
+:root[data-theme="dark"] .session-snapshot-note {
+  border-color: rgba(var(--accent-rgb, 22,123,123), .28);
+  color: #d2ebe8;
+  background: rgba(var(--accent-rgb, 22,123,123), .14);
+}
+:root[data-theme="dark"] .session-roster-title h2,
+:root[data-theme="dark"] .session-roster-count strong,
+:root[data-theme="dark"] .session-roster-student-main strong { color: #e9f0f6; }
+:root[data-theme="dark"] .session-view-roster-button {
+  border-color: rgba(var(--accent-rgb, 22,123,123), .35);
+  color: #d2ebe8;
+}
+@media (max-width: 760px) {
+  .session-roster-heading { align-items: stretch; flex-direction: column; }
+  .session-roster-heading .secondary-button { width: 100%; justify-content: center; }
+  .session-roster-summary { align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+  .session-roster-title { flex-basis: 100%; }
+  .session-roster-count { margin-right: auto; }
+  .face-scan-locked-notice { align-items: flex-start; flex-wrap: wrap; }
+  .face-scan-locked-notice > div:nth-child(2) { flex-basis: calc(100% - 50px); }
+  .face-scan-locked-notice .face-gate-pill { margin-left: 47px; }
+  .session-roster-student { align-items: flex-start; padding: 12px; }
+  .session-roster-face-status { max-width: 100px; line-height: 1.4; }
+}
