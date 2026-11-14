@@ -13,6 +13,9 @@ type LoginScreenProps = {
   message: string;
   onRequestPasswordReset: (email: string) => Promise<void>;
   recoveryMode: boolean;
+  inviteSetupMode: boolean;
+  inviteName: string;
+  inviteCourseNames: string;
   onUpdatePassword: (password: string) => Promise<void>;
 };
 
@@ -21,6 +24,9 @@ export function LoginScreen({
   message,
   onRequestPasswordReset,
   recoveryMode,
+  inviteSetupMode,
+  inviteName,
+  inviteCourseNames,
   onUpdatePassword,
 }: LoginScreenProps) {
   const [email, setEmail] = useState("");
@@ -76,17 +82,21 @@ export function LoginScreen({
     }
   };
 
-  const heading = recoveryMode
-    ? "Choose a new password"
-    : forgotMode
-      ? "Reset your password"
-      : "Sign in to CampusFace";
+  const heading = inviteSetupMode
+    ? "Complete your CampusFace setup"
+    : recoveryMode
+      ? "Choose a new password"
+      : forgotMode
+        ? "Reset your password"
+        : "Sign in to CampusFace";
 
-  const description = recoveryMode
-    ? "Create a new password for your CampusFace staff account."
-    : forgotMode
-      ? "Enter your staff email address. We will send a secure password-reset link."
-      : "Use your authorised staff account to open the attendance workspace.";
+  const description = inviteSetupMode
+    ? `Welcome, ${inviteName || "lecturer"}. Your assigned courses: ${inviteCourseNames || "Your administrator will confirm your course list"}. Create a password to finish setting up your account.`
+    : recoveryMode
+      ? "Create a new password for your CampusFace staff account."
+      : forgotMode
+        ? "Enter your staff email address. We will send a secure password-reset link."
+        : "Use your authorised staff account to open the attendance workspace.";
 
   return (
     <main className="auth-screen">
@@ -104,7 +114,7 @@ export function LoginScreen({
           </div>
         )}
 
-        {recoveryMode ? (
+        {recoveryMode || inviteSetupMode ? (
           <form className="auth-form" onSubmit={handleUpdatePassword}>
             <label className="auth-field">
               <span>New password</span>
@@ -131,7 +141,7 @@ export function LoginScreen({
               />
             </label>
             <button className="auth-submit" type="submit" disabled={submitting}>
-              {submitting ? "Saving password..." : "Set new password"}
+              {submitting ? "Saving password..." : inviteSetupMode ? "Create password and continue" : "Set new password"}
             </button>
           </form>
         ) : forgotMode ? (
