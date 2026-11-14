@@ -34,7 +34,6 @@ import type { StaffProfile } from "./auth/AuthGate";
 import { CourseCataloguePage, type CourseRecord } from "./admin/CourseCataloguePage";
 import { AcademicStructurePage } from "./admin/AcademicStructurePage";
 import { StaffManagementPage } from "./admin/StaffManagementPage";
-import { LecturerCourseAssignmentsPage } from "./admin/LecturerCourseAssignmentsPage";
 import { supabase } from "./lib/supabase";
 import { EditStudentDialog, type ManagedStudentRecord } from "./registration/EditStudentDialog";
 import { FaceRegistrationReadinessPage } from "./registration/FaceRegistrationReadinessPage";
@@ -348,14 +347,6 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
                     </span>
                     <ArrowRight size={17} />
                   </button>
-                  <button className="settings-action-row" type="button" onClick={() => setAdminPage("course-assignments")}>
-                    <span className="settings-action-icon"><BookOpen size={18} /></span>
-                    <span className="settings-action-copy">
-                      <strong>Lecturer course assignments</strong>
-                      <small>Choose the courses each lecturer can manage</small>
-                    </span>
-                    <ArrowRight size={17} />
-                  </button>
                   <button className="settings-action-row" type="button" onClick={() => setAdminPage("staff-management")}>
                     <span className="settings-action-icon"><Users size={18} /></span>
                     <span className="settings-action-copy">
@@ -407,8 +398,6 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
             />
           ) : adminPage === "academic-structure" && isAdministrator ? (
             <AcademicStructurePage onBack={() => setAdminPage("settings")} />
-          ) : adminPage === "course-assignments" && isAdministrator ? (
-            <LecturerCourseAssignmentsPage onBack={() => setAdminPage("settings")} />
           ) : adminPage === "staff-management" && isAdministrator ? (
             <StaffManagementPage onBack={() => setAdminPage("settings")} />
           ) : adminPage === "face-readiness" && faceReadinessStudent ? (
