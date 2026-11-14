@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
-  Camera,
   CheckCircle2,
   FileCheck2,
   LockKeyhole,
