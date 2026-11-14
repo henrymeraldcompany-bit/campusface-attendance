@@ -13,7 +13,7 @@ Last reviewed: 14 November 2026
 - Supabase Auth: 2 staff accounts exist
 - Supabase Storage: 0 buckets exist
 - Edge Function: `manage-staff`, active version 6; its source is in `supabase/functions/manage-staff/index.ts`
-- Biometric processing: disabled (`capture_enabled = false)); keep it disabled unless the institution separately approves and completes the required privacy and security safeguards.
+- Biometric processing: disabled (`capture_enabled = false`); keep it disabled unless the institution separately approves and completes the required privacy and security safeguards.
 
 The repository is public. Never commit student/staff records, database exports, Auth exports, passwords, tokens, database connection strings, or encryption passphrases.
 
