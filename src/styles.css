@@ -2129,3 +2129,73 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .staff-role-select select { width: 100%; max-width: none; min-height: 38px; }
   .staff-admin-controls > button { min-height: 38px; }
 }
+
+
+/* Bounded staff verification: clear retry state without discarding the session */
+.auth-verification-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  padding: 28px 22px;
+  text-align: center;
+}
+.auth-verification-error-icon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border-radius: 15px;
+  color: #a36d1e;
+  background: #fbf1dc;
+}
+.auth-verification-error-icon span {
+  font-size: 26px;
+  font-weight: 850;
+}
+.auth-verification-error > strong {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 800;
+}
+.auth-verification-error > p {
+  max-width: 390px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+.auth-verification-actions {
+  display: grid;
+  width: min(100%, 340px);
+  gap: 9px;
+  margin-top: 8px;
+}
+.auth-verification-actions .auth-submit {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+}
+.auth-secondary-action {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  background: var(--surface);
+  font-size: 11px;
+  font-weight: 750;
+}
+.auth-secondary-action:hover { border-color: var(--teal); color: var(--teal-dark); }
+:root[data-theme="dark"] .auth-verification-error-icon {
+  color: #eacb8e;
+  background: #3b3121;
+}
+:root[data-theme="dark"] .auth-verification-error > strong { color: #e9f0f6; }
+:root[data-theme="dark"] .auth-secondary-action {
+  border-color: #34495a;
+  color: #d6e1ea;
+  background: #142536;
+}
