@@ -226,6 +226,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
 
   const switchTab = (tab: MainTab) => {
     setActiveTab(tab);
+    setAdminPage("workspace");
     setMobileMenuOpen(false);
     setSettingsOpen(false);
   };
