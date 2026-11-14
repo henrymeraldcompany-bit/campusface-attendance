@@ -25,6 +25,7 @@ export function AuthGate({ children }: AuthGateProps) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [profile, setProfile] = useState<StaffProfile | null>(null);
   const [message, setMessage] = useState("");
+  const [recoveryMode, setRecoveryMode] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -32,8 +33,9 @@ export function AuthGate({ children }: AuthGateProps) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
       authEventReceived = true;
+      if (event === "PASSWORD_RECOVERY") { setRecoveryMode(true); setMessage("Choose a new password for your CampusFace account."); }
       if (mounted) setSession(nextSession);
     });
 
@@ -135,6 +137,21 @@ export function AuthGate({ children }: AuthGateProps) {
     setSession(data.session);
   };
 
+  const handlePasswordReset = async (email: string) => {
+    const redirectTo = `${window.location.origin}/campusface-attendance/`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) { setMessage("We could not send the reset email. Check the address and Supabase email settings."); return; }
+    setMessage("Password reset email sent. Open the link in your email on this device.");
+  };
+
+  const handleUpdatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) { setMessage("Could not update the password. Please reopen the recovery email link and try again."); return; }
+    setRecoveryMode(false);
+    setMessage("Password updated. You can now sign in with your new password.");
+    await supabase.auth.signOut();
+  };
+
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
 
@@ -166,5 +183,5 @@ export function AuthGate({ children }: AuthGateProps) {
     );
   }
 
-  return <LoginScreen onSignIn={handleSignIn} message={message} />;
+  return <LoginScreen onSignIn={handleSignIn} message={message} onRequestPasswordReset={handlePasswordReset} recoveryMode={recoveryMode} onUpdatePassword={handleUpdatePassword} />;
 }
