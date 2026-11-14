@@ -19,5 +19,7 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Run automated regression tests
+        run: npm test
       - name: Typecheck and production build
         run: npm run build
