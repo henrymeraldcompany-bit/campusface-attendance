@@ -18,7 +18,13 @@ type AuthGateProps = {
   ) => ReactNode;
 };
 
-type AuthStatus = "loading" | "checking" | "ready" | "signed-out" | "error";
+type AuthStatus =
+  | "loading"
+  | "checking"
+  | "ready"
+  | "signed-out"
+  | "recovery"
+  | "error";
 
 export function AuthGate({ children }: AuthGateProps) {
   const [session, setSession] = useState<Session | null>(null);
@@ -35,17 +41,25 @@ export function AuthGate({ children }: AuthGateProps) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, nextSession) => {
       authEventReceived = true;
-      if (event === "PASSWORD_RECOVERY") { setRecoveryMode(true); setMessage("Choose a new password for your CampusFace account."); }
+
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveryMode(true);
+        setMessage("Choose a new password for your CampusFace account.");
+        setStatus("recovery");
+      }
+
       if (mounted) setSession(nextSession);
     });
 
     void supabase.auth.getSession().then(({ data, error }) => {
       if (!mounted || authEventReceived) return;
+
       if (error) {
         setMessage("Your saved session could not be restored. Please sign in again.");
         setStatus("signed-out");
         return;
       }
+
       setSession(data.session);
     });
 
@@ -57,6 +71,16 @@ export function AuthGate({ children }: AuthGateProps) {
 
   useEffect(() => {
     let active = true;
+
+    // A recovery session is temporary and must show the password form instead
+    // of being routed into the normal staff workspace.
+    if (recoveryMode) {
+      setProfile(null);
+      setStatus("recovery");
+      return () => {
+        active = false;
+      };
+    }
 
     if (!session) {
       setProfile(null);
@@ -92,7 +116,9 @@ export function AuthGate({ children }: AuthGateProps) {
       if (!active) return;
 
       if (error) {
-        setMessage("CampusFace could not verify your staff permissions. Check your connection and try again.");
+        setMessage(
+          "CampusFace could not verify your staff permissions. Check your connection and try again.",
+        );
         setStatus("error");
         return;
       }
@@ -102,7 +128,9 @@ export function AuthGate({ children }: AuthGateProps) {
         !data.is_active ||
         !["lecturer", "administrator"].includes(data.staff_role)
       ) {
-        setMessage("This account is not authorised for CampusFace. Only active lecturers and administrators can access the workspace. Contact the CampusFace administrator.");
+        setMessage(
+          "This account is not authorised for CampusFace. Only active lecturers and administrators can access the workspace. Contact the CampusFace administrator.",
+        );
         await supabase.auth.signOut();
         return;
       }
@@ -117,7 +145,7 @@ export function AuthGate({ children }: AuthGateProps) {
     return () => {
       active = false;
     };
-  }, [session]);
+  }, [session, recoveryMode]);
 
   const handleSignIn = async (email: string, password: string) => {
     setMessage("");
@@ -138,18 +166,43 @@ export function AuthGate({ children }: AuthGateProps) {
   };
 
   const handlePasswordReset = async (email: string) => {
-    const redirectTo = `${window.location.origin}/campusface-attendance/`;
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-    if (error) { setMessage("We could not send the reset email. Check the address and Supabase email settings."); return; }
-    setMessage("Password reset email sent. Open the link in your email on this device.");
+    const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+
+    if (error) {
+      setMessage(
+        "We could not send the reset email. Please check your email address and the Supabase Auth email settings.",
+      );
+      return;
+    }
+
+    setMessage(
+      "Password reset email sent. Open the link in your email on this device to choose a new password.",
+    );
   };
 
   const handleUpdatePassword = async (password: string) => {
     const { error } = await supabase.auth.updateUser({ password });
-    if (error) { setMessage("Could not update the password. Please reopen the recovery email link and try again."); return; }
+
+    if (error) {
+      setMessage(
+        "The password could not be updated. Reopen the latest password-reset email and try again.",
+      );
+      return;
+    }
+
+    const { error: signOutError } = await supabase.auth.signOut();
     setRecoveryMode(false);
-    setMessage("Password updated. You can now sign in with your new password.");
-    await supabase.auth.signOut();
+    setSession(null);
+    setProfile(null);
+    setStatus("signed-out");
+    setMessage(
+      signOutError
+        ? "Your password was updated. Please reload this page, then sign in with your new password."
+        : "Your password was updated successfully. Sign in with your new password.",
+    );
   };
 
   const handleSignOut = async () => {
@@ -163,6 +216,7 @@ export function AuthGate({ children }: AuthGateProps) {
 
     setSession(null);
     setProfile(null);
+    setRecoveryMode(false);
     setMessage("");
     setStatus("signed-out");
   };
@@ -177,11 +231,21 @@ export function AuthGate({ children }: AuthGateProps) {
         <div className="auth-loading-mark">
           <span className="auth-spinner" />
         </div>
-        <strong>{status === "loading" ? "Opening CampusFace" : "Verifying staff access"}</strong>
+        <strong>
+          {status === "loading" ? "Opening CampusFace" : "Verifying staff access"}
+        </strong>
         <p>Securely checking your account.</p>
       </main>
     );
   }
 
-  return <LoginScreen onSignIn={handleSignIn} message={message} onRequestPasswordReset={handlePasswordReset} recoveryMode={recoveryMode} onUpdatePassword={handleUpdatePassword} />;
+  return (
+    <LoginScreen
+      onSignIn={handleSignIn}
+      message={message}
+      onRequestPasswordReset={handlePasswordReset}
+      recoveryMode={recoveryMode}
+      onUpdatePassword={handleUpdatePassword}
+    />
+  );
 }
