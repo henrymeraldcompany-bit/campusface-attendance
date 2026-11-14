@@ -69,14 +69,14 @@ function formatTime(value: string) {
 function csvCell(value: string | number | null | undefined) {
   const raw = String(value ?? "");
   // Prevent spreadsheet formula execution when a text field begins with a formula marker.
-  const safe = /^[\\s]*[=+\\-@]/.test(raw) ? `'${raw}` : raw;
+  const safe = /^\s*[=+\-@]/.test(raw) ? `'${raw}` : raw;
   return `"${safe.replace(/"/g, '""')}"`;
 }
 
 function reportFileSlug(value: string) {
   return value
     .normalize("NFKD")
-    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 60) || "class";
@@ -319,9 +319,9 @@ export function SessionRosterPage({ session, onBack }: Props) {
       ];
     });
 
-    const csv = "\\uFEFF" + [headers, ...rows]
+    const csv = "\uFEFF" + [headers, ...rows]
       .map((row) => row.map((value) => csvCell(value)).join(","))
-      .join("\\r\\n");
+      .join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
