@@ -1136,6 +1136,7 @@ type AttendanceSessionRow = {
   start_time: string;
   started_at: string;
   status: "active" | "ended";
+  ended_at: string | null;
   courses: { name: string } | null;
   snapshot_count: number;
 };
@@ -1166,7 +1167,7 @@ function AttendancePage({ courses }: { courses: CourseRecord[] }) {
     if (showLoading) setSessionsLoading(true);
     const { data, error } = await supabase
       .from("attendance_sessions")
-      .select("id, course_id, class_title, class_date, start_time, started_at, status, courses(name)")
+      .select("id, course_id, class_title, class_date, start_time, started_at, status, ended_at, courses(name)")
       .order("started_at", { ascending: false })
       .limit(30);
 
@@ -1274,12 +1275,13 @@ function AttendancePage({ courses }: { courses: CourseRecord[] }) {
   };
 
   const activeSessionCount = sessions.filter((session) => session.status === "active").length;
+  const reportsAvailableCount = sessions.filter((session) => session.status === "ended").length;
 
   if (selectedSession) {
     return (
       <SessionRosterPage
         session={selectedSession as SessionRosterSummary}
-        onBack={() => setSelectedSession(null)}
+        onBack={() => { setSelectedSession(null); void loadSessions(false); }}
       />
     );
   }
@@ -1304,7 +1306,7 @@ function AttendancePage({ courses }: { courses: CourseRecord[] }) {
       <section className="stats-grid" aria-label="Attendance overview">
         <StatCard icon={<CalendarDays size={19} />} label="Attendance sessions" value={String(sessions.length)} note="Sessions created" />
         <StatCard icon={<Users size={19} />} label="Active sessions" value={String(activeSessionCount)} note="Currently open classes" />
-        <StatCard icon={<FileText size={19} />} label="Reports available" value="0" note="End-class reporting is next" />
+        <StatCard icon={<FileText size={19} />} label="Reports available" value={String(reportsAvailableCount)} note="Finalised class reports" />
       </section>
 
       {formMessage && (
