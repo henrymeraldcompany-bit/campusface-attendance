@@ -27,7 +27,8 @@ A lecturer-only university attendance management Progressive Web App (PWA), desi
 - Staff access verification has a bounded timeout and retry path. The app avoids repeating profile lookups when Supabase refreshes an access token for the same user; the signed-in session is preserved for transient verification failures.
 - Task 11: authorised lecturers and administrators can permanently end accessible active sessions. The database assigns the end time, prevents reopening and blocks further attendance marks. Ended sessions show final present/absent lists and attendance percentage from the fixed roster snapshot and immutable marks; reports are available from session history. PDF/CSV export is a separate next task.
 - Task 12: ended sessions can be exported as CSV with session details, attendance totals and one row per student. A print-ready report includes the class summary plus separate present and absent lists; Chrome's Print screen can save it as a PDF. The export uses the final saved session snapshot and attendance records. Face scanning remains unimplemented and disabled; attendance verification is manual only.
-- Task 13: all 11 public application tables have Row Level Security enabled; unauthenticated roles have no table grants, and exposed RPC execution is restricted. The session-creation endpoint is an invoker-only public wrapper around a permission-checked helper in the private schema. The frontend contains only the Supabase publishable key, not a service-role or secret key. Supabase Auth leaked-password protection remains a dashboard setting that must still be enabled by the project owner.
+- Task 13: all 11 public application tables have Row Level Security enabled; unauthenticated roles have no table grants, and exposed RPC execution is restricted. The session-creation endpoint is an invoker-only public wrapper around a permission-checked helper in the private schema. The frontend contains only the Supabase publishable key, not a service-role or secret key. Supabase Auth leaked-password protection is a paid-plan dashboard feature and is not enabled on the current project plan.
+- Task 14: automated regression tests cover attendance totals from the immutable session roster, zero/partial/full attendance, exclusion of marks outside the saved roster, CSV cell quoting and formula-prefix neutralisation, and safe report filenames. Both the build check and deployment workflow run the tests before building or publishing.
 - Staff accounts must be provisioned by a trusted administrator; the app has no public sign-up or student login.
 
 ## Main application areas
@@ -51,9 +52,10 @@ npm install
 npm run dev
 ```
 
-Build and typecheck:
+Run regression tests, then build and typecheck:
 
 ```bash
+npm test
 npm run build
 ```
 
