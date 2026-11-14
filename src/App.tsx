@@ -34,6 +34,7 @@ import type { StaffProfile } from "./auth/AuthGate";
 import { CourseCataloguePage, type CourseRecord } from "./admin/CourseCataloguePage";
 import { supabase } from "./lib/supabase";
 import { EditStudentDialog, type ManagedStudentRecord } from "./registration/EditStudentDialog";
+import { FaceRegistrationReadinessPage } from "./registration/FaceRegistrationReadinessPage";
 
 type MainTab = "registration" | "attendance";
 type ThemeMode = "light" | "dark";
@@ -84,7 +85,8 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
   const [toast, setToast] = useState("");
   const [courses, setCourses] = useState<CourseRecord[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
-  const [adminPage, setAdminPage] = useState<"workspace" | "settings" | "courses">("workspace");
+  const [adminPage, setAdminPage] = useState<"workspace" | "settings" | "courses" | "face-readiness">("workspace");
+  const [faceReadinessStudent, setFaceReadinessStudent] = useState<ManagedStudentRecord | null>(null);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const isAdministrator = staffProfile.staff_role === "administrator";
@@ -220,7 +222,13 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
 
   const switchTab = (tab: MainTab) => {
     setActiveTab(tab);
+    setFaceReadinessStudent(null);
     setAdminPage("workspace");
+  };
+
+  const openFaceReadiness = (student: ManagedStudentRecord) => {
+    setFaceReadinessStudent(student);
+    setAdminPage("face-readiness");
   };
 
   const openSettings = () => setAdminPage("settings");
@@ -389,6 +397,11 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
               onBack={() => setAdminPage("settings")}
               onRefresh={refreshCourses}
             />
+          ) : adminPage === "face-readiness" && faceReadinessStudent ? (
+            <FaceRegistrationReadinessPage
+              student={faceReadinessStudent}
+              onBack={() => setAdminPage("workspace")}
+            />
           ) : (
             <>
               <div className="preview-notice">
@@ -397,7 +410,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
               </div>
 
               {activeTab === "registration" ? (
-                <RegistrationPage courses={courses} />
+                <RegistrationPage courses={courses} onOpenFaceReadiness={openFaceReadiness} />
               ) : (
                 <AttendancePage onComingSoon={showComingSoon} courses={activeCourses} />
               )}
@@ -613,7 +626,7 @@ type PageActionProps = {
 
 type StudentRecord = ManagedStudentRecord;
 
-function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
+function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRecord[]; onOpenFaceReadiness: (student: ManagedStudentRecord) => void }) {
   const [formOpen, setFormOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [courseSearch, setCourseSearch] = useState("");
@@ -956,52 +969,100 @@ function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
         {studentsLoading ? (
           <div className="student-directory-loading">Loading student records...</div>
         ) : filteredStudents.length > 0 ? (
-          <div className="table-scroll">
-            <table className="records-table">
-              <thead>
-                <tr>
-                  <th>STUDENT</th>
-                  <th>REGISTRATION NUMBER</th>
-                  <th>FACULTY / DEPARTMENT</th>
-                  <th>COURSES</th>
-                  <th>FACE PROFILE</th>
-                  <th>STATUS</th>
-                  <th>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredStudents.map((student) => {
-                  const courseNames = (student.student_courses ?? [])
-                    .map((enrolment) => enrolment.courses?.name)
-                    .filter((name): name is string => Boolean(name));
-                  return (
-                    <tr key={student.id} className={!student.is_active ? "student-row-archived" : undefined}>
-                      <td><strong className="student-name-cell">{student.full_name}</strong></td>
-                      <td>{student.registration_number}</td>
-                      <td><span className="student-academic-cell">{student.faculty}<small>{student.department}</small></span></td>
-                      <td>{courseNames.length ? courseNames.join(", ") : "No course listed"}</td>
-                      <td><span className="student-face-pending">Not registered</span></td>
-                      <td><span className={student.is_active ? "student-status-pill active" : "student-status-pill archived"}>{student.is_active ? "Active" : "Archived"}</span></td>
-                      <td>
-                        <div className="student-row-actions">
-                          <button className="student-edit-button" type="button" onClick={() => setEditingStudent(student)}>
-                            <Pencil size={13} /> Edit
+          <>
+            <div className="table-scroll student-directory-desktop">
+              <table className="records-table">
+                <thead>
+                  <tr>
+                    <th>STUDENT</th>
+                    <th>REGISTRATION NUMBER</th>
+                    <th>FACULTY / DEPARTMENT</th>
+                    <th>COURSES</th>
+                    <th>FACE PROFILE</th>
+                    <th>STATUS</th>
+                    <th>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredStudents.map((student) => {
+                    const courseNames = (student.student_courses ?? [])
+                      .map((enrolment) => enrolment.courses?.name)
+                      .filter((name): name is string => Boolean(name));
+                    return (
+                      <tr key={student.id} className={!student.is_active ? "student-row-archived" : undefined}>
+                        <td><strong className="student-name-cell">{student.full_name}</strong></td>
+                        <td>{student.registration_number}</td>
+                        <td><span className="student-academic-cell">{student.faculty}<small>{student.department}</small></span></td>
+                        <td>{courseNames.length ? courseNames.join(", ") : "No course listed"}</td>
+                        <td>
+                          <button className="student-face-review-button" type="button" onClick={() => onOpenFaceReadiness(student)}>
+                            <Camera size={12} /> Review readiness
                           </button>
-                          <button
-                            className={student.is_active ? "student-archive-button" : "student-reactivate-button"}
-                            type="button"
-                            onClick={() => setStudentStatusTarget(student)}
-                          >
-                            {student.is_active ? "Archive" : "Reactivate"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td><span className={student.is_active ? "student-status-pill active" : "student-status-pill archived"}>{student.is_active ? "Active" : "Archived"}</span></td>
+                        <td>
+                          <div className="student-row-actions">
+                            <button className="student-edit-button" type="button" onClick={() => setEditingStudent(student)}>
+                              <Pencil size={13} /> Edit
+                            </button>
+                            <button
+                              className={student.is_active ? "student-archive-button" : "student-reactivate-button"}
+                              type="button"
+                              onClick={() => setStudentStatusTarget(student)}
+                            >
+                              {student.is_active ? "Archive" : "Reactivate"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="student-directory-mobile">
+              {filteredStudents.map((student) => {
+                const courseNames = (student.student_courses ?? [])
+                  .map((enrolment) => enrolment.courses?.name)
+                  .filter((name): name is string => Boolean(name));
+                return (
+                  <article className={student.is_active ? "student-mobile-card" : "student-mobile-card archived"} key={student.id}>
+                    <div className="student-mobile-card-head">
+                      <div className="student-mobile-identity">
+                        <strong>{student.full_name}</strong>
+                        <span>{student.registration_number}</span>
+                      </div>
+                      <span className={student.is_active ? "student-status-pill active" : "student-status-pill archived"}>
+                        {student.is_active ? "Active" : "Archived"}
+                      </span>
+                    </div>
+                    <div className="student-mobile-details">
+                      <div><span>Faculty</span><strong>{student.faculty}</strong></div>
+                      <div><span>Department</span><strong>{student.department}</strong></div>
+                      <div className="student-mobile-courses"><span>Courses</span><strong>{courseNames.length ? courseNames.join(", ") : "No course listed"}</strong></div>
+                    </div>
+                    <div className="student-mobile-face-row">
+                      <span><Camera size={13} /> Face profile not registered</span>
+                      <button className="student-face-review-button" type="button" onClick={() => onOpenFaceReadiness(student)}>Review</button>
+                    </div>
+                    <div className="student-mobile-actions">
+                      <button className="student-edit-button" type="button" onClick={() => setEditingStudent(student)}>
+                        <Pencil size={13} /> Edit record
+                      </button>
+                      <button
+                        className={student.is_active ? "student-archive-button" : "student-reactivate-button"}
+                        type="button"
+                        onClick={() => setStudentStatusTarget(student)}
+                      >
+                        {student.is_active ? "Archive student" : "Reactivate"}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </>
         ) : (
           <EmptyState
             icon={<Users size={25} />}
