@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { Mail, RefreshCw, ShieldCheck, UserPlus, Users, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -69,7 +70,7 @@ export function StaffManagementPage({ onBack }: Props) {
     void loadStaff();
   }, []);
 
-  const handleInvite = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleInvite = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (inviting) return;
     setInviting(true);
