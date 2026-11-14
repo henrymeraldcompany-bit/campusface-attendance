@@ -1292,7 +1292,7 @@ function AttendancePage({ courses }: { courses: CourseRecord[] }) {
         <div>
           <div className="eyebrow">CLASS MANAGEMENT</div>
           <h1>Attendance</h1>
-          <p>Create class sessions, scan eligible students and review attendance.</p>
+          <p>Create class sessions, verify eligible students manually and review attendance.</p>
         </div>
         <button className="primary-button" type="button" onClick={() => {
           setFormOpen((open) => !open);
