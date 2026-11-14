@@ -473,7 +473,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
 type SidebarProps = {
   activeTab: MainTab;
   onNavigate: (tab: MainTab) => void;
-  activePage: "workspace" | "settings" | "courses";
+  activePage: "workspace" | "settings" | "courses" | "face-readiness";
   onOpenSettings: () => void;
   isAdministrator: boolean;
   staffProfile: StaffProfile;
