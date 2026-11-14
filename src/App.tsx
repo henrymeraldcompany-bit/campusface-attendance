@@ -30,6 +30,8 @@ import {
 } from "lucide-react";
 import "./styles.css";
 import type { StaffProfile } from "./auth/AuthGate";
+import { CourseCataloguePage, type CourseRecord } from "./admin/CourseCataloguePage";
+import { supabase } from "./lib/supabase";
 
 type MainTab = "registration" | "attendance";
 type ThemeMode = "light" | "dark";
@@ -73,18 +75,6 @@ function isRunningAsInstalledApp() {
     (navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
-const COURSES = [
-  "English",
-  "Mathematics",
-  "Igbo",
-  "Physics",
-  "Chemistry",
-  "Biology",
-  "Government",
-  "Commerce",
-  "Literature in English"
-];
-
 function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOut: () => Promise<void> }) {
   const [activeTab, setActiveTab] = useState<MainTab>("registration");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -92,6 +82,9 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
   const [isInstalled, setIsInstalled] = useState(isRunningAsInstalledApp);
   const [toast, setToast] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [courses, setCourses] = useState<CourseRecord[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [adminPage, setAdminPage] = useState<"workspace" | "courses">("workspace");
   const isAdministrator = staffProfile.staff_role === "administrator";
   const [theme, setTheme] = useState<ThemeMode>(() => {
     try {
@@ -159,6 +152,47 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    let mounted = true;
+    const loadCatalogue = async () => {
+      const { data, error } = await supabase
+        .from("courses")
+        .select("id, name, is_active")
+        .order("name", { ascending: true });
+
+      if (!mounted) return;
+      if (error) {
+        setCourses([]);
+        setToast("The course catalogue could not be loaded. Check your connection and staff access.");
+      } else {
+        setCourses((data ?? []) as CourseRecord[]);
+      }
+      setCoursesLoading(false);
+    };
+
+    void loadCatalogue();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const refreshCourses = async () => {
+    setCoursesLoading(true);
+    const { data, error } = await supabase
+      .from("courses")
+      .select("id, name, is_active")
+      .order("name", { ascending: true });
+
+    if (error) {
+      setToast("The course catalogue could not be refreshed. Check your connection and staff access.");
+    } else {
+      setCourses((data ?? []) as CourseRecord[]);
+    }
+    setCoursesLoading(false);
+  };
+
+  const activeCourses = courses.filter((course) => course.is_active);
+
   const handleInstall = async () => {
     if (isInstalled) return;
 
@@ -179,6 +213,12 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
   };
 
   const showComingSoon = (feature: string) => {
+    if (feature === "Course catalogue" && isAdministrator) {
+      setAdminPage("courses");
+      setSettingsOpen(false);
+      setMobileMenuOpen(false);
+      return;
+    }
     setToast(`${feature} will be connected in a later development task.`);
     setSettingsOpen(false);
     setMobileMenuOpen(false);
@@ -248,15 +288,26 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
         </header>
 
         <main className="main-content">
-          <div className="preview-notice">
-            <Info size={17} />
-            <span><strong>Staff access verified.</strong> Student records, camera capture and attendance processing will be connected in later tasks.</span>
-          </div>
-
-          {activeTab === "registration" ? (
-            <RegistrationPage onComingSoon={showComingSoon} />
+          {adminPage === "courses" && isAdministrator ? (
+            <CourseCataloguePage
+              courses={courses}
+              loading={coursesLoading}
+              onBack={() => setAdminPage("workspace")}
+              onRefresh={refreshCourses}
+            />
           ) : (
-            <AttendancePage onComingSoon={showComingSoon} />
+            <>
+              <div className="preview-notice">
+                <Info size={17} />
+                <span><strong>Staff access verified.</strong> Student records, camera capture and attendance processing will be connected in later tasks.</span>
+              </div>
+
+              {activeTab === "registration" ? (
+                <RegistrationPage onComingSoon={showComingSoon} courses={activeCourses} />
+              ) : (
+                <AttendancePage onComingSoon={showComingSoon} courses={activeCourses} />
+              )}
+            </>
           )}
         </main>
 
@@ -505,9 +556,10 @@ function AppearanceSettings({
 
 type PageActionProps = {
   onComingSoon: (feature: string) => void;
+  courses: CourseRecord[];
 };
 
-function RegistrationPage({ onComingSoon }: PageActionProps) {
+function RegistrationPage({ onComingSoon, courses }: PageActionProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
@@ -542,7 +594,7 @@ function RegistrationPage({ onComingSoon }: PageActionProps) {
 
       <section className="stats-grid" aria-label="Registration overview">
         <StatCard icon={<Users size={19} />} label="Registered students" value="0" note="Student records" />
-        <StatCard icon={<BookOpen size={19} />} label="Available courses" value={String(COURSES.length)} note="Initial course catalogue" />
+        <StatCard icon={<BookOpen size={19} />} label="Available courses" value={String(courses.length)} note="Active catalogue courses" />
         <StatCard icon={<Camera size={19} />} label="Face profiles" value="0" note="Setup planned for Task 7" />
       </section>
 
@@ -603,17 +655,22 @@ function RegistrationPage({ onComingSoon }: PageActionProps) {
                 />
               </label>
               <div className="course-options">
-                {COURSES.filter((course) => course.toLowerCase().includes(courseSearch.trim().toLowerCase())).map((course) => (
-                  <label key={course} className={selectedCourses.includes(course) ? "course-option checked" : "course-option"}>
-                    <input
-                      type="checkbox"
-                      checked={selectedCourses.includes(course)}
-                      onChange={() => toggleCourse(course)}
-                    />
-                    <span className="custom-check">{selectedCourses.includes(course) && <Check size={13} />}</span>
-                    <span>{course}</span>
-                  </label>
-                ))}
+                {courses
+                  .filter((course) => course.name.toLowerCase().includes(courseSearch.trim().toLowerCase()))
+                  .map((course) => (
+                    <label key={course.id} className={selectedCourses.includes(course.name) ? "course-option checked" : "course-option"}>
+                      <input
+                        type="checkbox"
+                        checked={selectedCourses.includes(course.name)}
+                        onChange={() => toggleCourse(course.name)}
+                      />
+                      <span className="custom-check">{selectedCourses.includes(course.name) && <Check size={13} />}</span>
+                      <span>{course.name}</span>
+                    </label>
+                  ))}
+                {courses.length === 0 && (
+                  <p className="course-list-empty">No active courses are available. Ask an administrator to add or activate courses.</p>
+                )}
               </div>
             </div>
 
@@ -674,7 +731,7 @@ function RegistrationPage({ onComingSoon }: PageActionProps) {
   );
 }
 
-function AttendancePage({ onComingSoon }: PageActionProps) {
+function AttendancePage({ onComingSoon, courses }: PageActionProps) {
   const [formOpen, setFormOpen] = useState(false);
 
   const preventPreviewSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -718,7 +775,7 @@ function AttendancePage({ onComingSoon }: PageActionProps) {
                 <span>Course</span>
                 <select defaultValue="">
                   <option value="" disabled>Select course</option>
-                  {COURSES.map((course) => <option value={course} key={course}>{course}</option>)}
+                  {courses.map((course) => <option value={course.id} key={course.id}>{course.name}</option>)}
                 </select>
               </label>
               <label className="field">
