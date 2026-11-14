@@ -79,7 +79,7 @@ export function AuthGate({ children }: AuthGateProps) {
         setStatus("recovery");
       }
 
-      if (event === "SIGNED_OUT") {
+      if (event === "SIGNED_OUT" || (event === "INITIAL_SESSION" && !nextSession)) {
         setRecoveryMode(false);
         setProfile(null);
         setMessage("");
@@ -103,6 +103,12 @@ export function AuthGate({ children }: AuthGateProps) {
         if (result.error) {
           setMessage("CampusFace could not restore your saved session. Check your connection and try signing in again.");
           setStatus("error");
+          return;
+        }
+
+        if (!result.data.session) {
+          setProfile(null);
+          setStatus("signed-out");
           return;
         }
 
