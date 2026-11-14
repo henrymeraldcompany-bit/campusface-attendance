@@ -3,7 +3,9 @@ import {
   ArrowLeft,
   Camera,
   CheckCircle2,
+  ClipboardCheck,
   Clock,
+  Lock,
   Search,
   ShieldAlert,
   ShieldCheck,
@@ -18,6 +20,7 @@ export type SessionRosterSummary = {
   class_date: string;
   start_time: string;
   status: "active" | "ended";
+  ended_at: string | null;
   courses: { name: string } | null;
   snapshot_count: number;
 };
@@ -74,6 +77,11 @@ export function SessionRosterPage({ session, onBack }: Props) {
   const [actionMessage, setActionMessage] = useState("");
   const [actionError, setActionError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+  const [sessionStatus, setSessionStatus] = useState<"active" | "ended">(session.status);
+  const [endedAt, setEndedAt] = useState<string | null>(session.ended_at);
+  const [confirmEndOpen, setConfirmEndOpen] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const [rosterFilter, setRosterFilter] = useState<"all" | "present" | "absent">("all");
 
   useEffect(() => {
     let active = true;
@@ -133,23 +141,29 @@ export function SessionRosterPage({ session, onBack }: Props) {
 
   const normalizedSearch = search.trim().toLowerCase();
   const filteredStudents = useMemo(() => {
-    if (!normalizedSearch) return students;
-    return students.filter((student) =>
-      [
+    return students.filter((student) => {
+      const matchesSearch = !normalizedSearch || [
         student.student_full_name,
         student.registration_number,
         student.faculty,
         student.department,
-      ].some((value) => value.toLowerCase().includes(normalizedSearch)),
-    );
-  }, [students, normalizedSearch]);
+      ].some((value) => value.toLowerCase().includes(normalizedSearch));
+      const isPresent = Boolean(attendanceByStudent[student.student_id]);
+      const matchesStatus = rosterFilter === "all" ||
+        (rosterFilter === "present" && isPresent) ||
+        (rosterFilter === "absent" && !isPresent);
+      return matchesSearch && matchesStatus;
+    });
+  }, [students, normalizedSearch, rosterFilter, attendanceByStudent]);
 
   const presentCount = Object.keys(attendanceByStudent).length;
   const absentCount = Math.max(students.length - presentCount, 0);
+  const attendanceRate = students.length > 0 ? (presentCount / students.length) * 100 : 0;
+  const sessionEnded = sessionStatus === "ended";
 
   const confirmMarkPresent = async () => {
     if (!pendingStudent || marking) return;
-    if (session.status !== "active") {
+    if (sessionStatus !== "active") {
       setActionError("This session has ended. No further attendance marks can be added.");
       setPendingStudent(null);
       return;
@@ -195,33 +209,78 @@ export function SessionRosterPage({ session, onBack }: Props) {
     }
   };
 
+  const confirmEndClass = async () => {
+    if (ending || sessionStatus !== "active") return;
+
+    setEnding(true);
+    setActionError("");
+    setActionMessage("");
+
+    try {
+      const { data, error } = await supabase.rpc("end_attendance_session", {
+        p_session_id: session.id,
+      });
+
+      if (error) {
+        if (error.code === "42501") {
+          setActionError("Your staff account is not authorised to end this class.");
+        } else if (error.code === "P0002") {
+          setActionError("This class session is unavailable or you do not have access to it.");
+        } else {
+          setActionError("The class could not be ended. Check your connection and try again.");
+        }
+        setConfirmEndOpen(false);
+        return;
+      }
+
+      setSessionStatus("ended");
+      setEndedAt(typeof data === "string" ? data : null);
+      setConfirmEndOpen(false);
+      setActionMessage("Class ended. Attendance is now frozen and the final report is available.");
+      setReloadKey((value) => value + 1);
+    } catch {
+      setActionError("The class could not be ended. Check your connection and try again.");
+      setConfirmEndOpen(false);
+    } finally {
+      setEnding(false);
+    }
+  };
+
   return (
     <>
       <div className="page-heading session-roster-heading">
         <div>
           <div className="eyebrow">ATTENDANCE / STUDENT IDENTIFICATION</div>
-          <h1>Eligible student roster</h1>
-          <p>This is the fixed student list saved when this class session started.</p>
+          <h1>{sessionEnded ? "Final attendance report" : "Eligible student roster"}</h1>
+          <p>{sessionEnded ? "This class is closed. The report below uses its saved enrolment snapshot." : "This is the fixed student list saved when this class session started."}</p>
         </div>
-        <button className="secondary-button" type="button" onClick={onBack}>
-          <ArrowLeft size={16} />
-          Back to attendance
-        </button>
+        <div className="session-roster-heading-actions">
+          {!sessionEnded && (
+            <button className="primary-button session-end-button" type="button" onClick={() => setConfirmEndOpen(true)} disabled={loading || Boolean(loadError)}>
+              <Lock size={15} />
+              End Class
+            </button>
+          )}
+          <button className="secondary-button" type="button" onClick={onBack}>
+            <ArrowLeft size={16} />
+            Back to attendance
+          </button>
+        </div>
       </div>
 
       <section className="panel session-roster-summary">
         <div className="session-roster-title">
           <span className="eyebrow">CLASS SESSION</span>
           <h2>{session.class_title}</h2>
-          <p>{session.courses?.name ?? "Course unavailable"} · {formatDate(session.class_date)} · {session.start_time.slice(0, 5)}</p>
+          <p>{session.courses?.name ?? "Course unavailable"} · {formatDate(session.class_date)} · {session.start_time.slice(0, 5)}{sessionEnded && endedAt ? ` · Ended ${formatTime(endedAt)}` : ""}</p>
         </div>
         <div className="session-roster-count">
           <Users size={19} />
           <strong>{students.length || session.snapshot_count}</strong>
           <span>Eligible students</span>
         </div>
-        <span className={session.status === "active" ? "student-status-pill active" : "student-status-pill archived"}>
-          {session.status === "active" ? "Active session" : "Ended session"}
+        <span className={sessionEnded ? "student-status-pill archived" : "student-status-pill active"}>
+          {sessionEnded ? "Ended session" : "Active session"}
         </span>
       </section>
 
@@ -236,9 +295,33 @@ export function SessionRosterPage({ session, onBack }: Props) {
         </article>
         <article className="stat-card">
           <div className="stat-icon"><Clock size={18} /></div>
-          <div className="stat-copy"><span>Not yet marked</span><strong>{absentCount}</strong><small>Pending review, not final absence</small></div>
+          <div className="stat-copy"><span>{sessionEnded ? "Absent" : "Not yet marked"}</span><strong>{absentCount}</strong><small>{sessionEnded ? "Not marked before class ended" : "Pending review, not final absence"}</small></div>
         </article>
       </section>
+
+      {sessionEnded && !loading && !loadError && (
+        <section className="panel session-final-report">
+          <div className="panel-heading">
+            <div>
+              <div className="eyebrow">FINAL REPORT</div>
+              <h2>Class attendance summary</h2>
+              <p>The attendance figures are final because this session can no longer accept new marks.</p>
+            </div>
+            <ClipboardCheck size={21} />
+          </div>
+          <div className="session-final-report-layout">
+            <div className="session-final-rate">
+              <strong>{attendanceRate.toFixed(1)}%</strong>
+              <span>Attendance rate</span>
+            </div>
+            <div className="session-final-report-details">
+              <p><strong>{presentCount}</strong> Present <span>·</span> <strong>{absentCount}</strong> Absent <span>·</span> <strong>{students.length}</strong> Eligible</p>
+              <small>Calculated as present students divided by the saved eligible-student snapshot</small>
+              {endedAt && <small>Finalised {new Intl.DateTimeFormat("en-NG", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Lagos" }).format(new Date(endedAt))}</small>}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="panel session-identification-panel">
         <div className="panel-heading">
@@ -303,10 +386,14 @@ export function SessionRosterPage({ session, onBack }: Props) {
       <section className="panel records-panel session-roster-list-panel">
         <div className="records-toolbar">
           <div>
-            <h2>Students in this session</h2>
+            <h2>{sessionEnded ? "Final attendance lists" : "Students in this session"}</h2>
             <p>{filteredStudents.length} of {students.length} snapshotted students</p>
           </div>
-          <span className="table-caption"><Users size={15} /> Fixed snapshot</span>
+          <div className="session-roster-filters" role="group" aria-label="Filter attendance list">
+            <button type="button" className={rosterFilter === "all" ? "active" : ""} onClick={() => setRosterFilter("all")}>All</button>
+            <button type="button" className={rosterFilter === "present" ? "active" : ""} onClick={() => setRosterFilter("present")}>Present</button>
+            <button type="button" className={rosterFilter === "absent" ? "active" : ""} onClick={() => setRosterFilter("absent")}>{sessionEnded ? "Absent" : "Not yet marked"}</button>
+          </div>
         </div>
 
         {loading ? (
@@ -331,12 +418,18 @@ export function SessionRosterPage({ session, onBack }: Props) {
                       Present
                       <small>{formatTime(mark.marked_at)}</small>
                     </span>
+                  ) : sessionEnded ? (
+                    <span className="session-attendance-mark-absent">
+                      <X size={14} />
+                      Absent
+                      <small>Not marked before class ended</small>
+                    </span>
                   ) : (
                     <button
                       className="session-mark-present-button"
                       type="button"
                       onClick={() => { setPendingStudent(student); setActionError(""); setActionMessage(""); }}
-                      disabled={session.status !== "active" || loading || Boolean(loadError)}
+                      disabled={sessionStatus !== "active" || loading || Boolean(loadError)}
                     >
                       Mark present
                     </button>
@@ -348,11 +441,36 @@ export function SessionRosterPage({ session, onBack }: Props) {
         ) : (
           <div className="session-roster-empty">
             {normalizedSearch
-              ? "No eligible student matches this search."
-              : "This session has no students in its saved snapshot."}
+              ? "No eligible student matches this search and filter."
+              : rosterFilter === "present"
+                ? "No students have been marked present in this session."
+                : rosterFilter === "absent"
+                  ? sessionEnded ? "There are no absent students in this session." : "No students are currently awaiting an attendance mark."
+                  : "This session has no students in its saved snapshot."}
           </div>
         )}
       </section>
+
+      {confirmEndOpen && (
+        <div className="confirmation-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget && !ending) setConfirmEndOpen(false);
+        }}>
+          <section className="confirmation-dialog" role="alertdialog" aria-modal="true" aria-labelledby="end-class-title" aria-describedby="end-class-description">
+            <div className="confirmation-icon"><Lock size={22} /></div>
+            <h2 id="end-class-title">End this class?</h2>
+            <p id="end-class-description">
+              This will permanently close <strong>{session.class_title}</strong>. Students not marked present will become absent in the final report. No more attendance marks can be added, and this session cannot be reopened.
+            </p>
+            <div className="confirmation-actions">
+              <button className="course-admin-text-button" type="button" onClick={() => setConfirmEndOpen(false)} disabled={ending}>Continue class</button>
+              <button className="primary-button" type="button" onClick={() => void confirmEndClass()} disabled={ending}>
+                <Lock size={15} />
+                {ending ? "Ending class..." : "Confirm End Class"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {pendingStudent && (
         <div className="confirmation-backdrop" role="presentation" onMouseDown={(event) => {
