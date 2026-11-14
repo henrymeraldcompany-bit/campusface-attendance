@@ -19,7 +19,8 @@ A lecturer-only university attendance management Progressive Web App (PWA), desi
 - Task 5: student registration saves student academic details and course enrolments transactionally in PostgreSQL. Registration numbers are unique without regard to case or surrounding spaces. Student records and enrolments are protected by RLS and are visible only to active authorised staff. Students do not receive Auth accounts.
 - Settings: appearance preferences are presented on a full Settings page for all staff. It includes a Back to workspace control, administrator-only academic controls, and a sign-out confirmation at the bottom of the Account section.
 - Task 6: authorised staff can edit student academic details and course enrolments, and archive/reactivate student records without permanently deleting them. Updates to student details and course enrolments are transactional. Archived records remain available for historical continuity.
-- Faculty/department catalogue administration, camera capture and attendance processing are still under development.
+- Task 7 (readiness phase): each student directory entry opens a face-registration readiness page. A server-controlled biometric gate is created with capture disabled by default. Staff can read the gate, but browser users cannot enable it. The page lists institutional approval, DPIA, lawful basis, informed consent, retention/deletion, security review and a non-biometric alternative as prerequisites. This release does not request camera access, capture face images, create templates or upload biometric data.
+- Actual face capture and recognition remain disabled until the institution completes and documents the required safeguards. Faculty/department catalogue administration and attendance processing are still under development.
 - Staff accounts must be provisioned by a trusted administrator; the app has no public sign-up or student login.
 
 ## Main application areas
