@@ -7,7 +7,6 @@ import {
   CalendarDays,
   Camera,
   Check,
-  ChevronDown,
   ClipboardCheck,
   ClipboardList,
   Clock,
@@ -77,14 +76,12 @@ function isRunningAsInstalledApp() {
 
 function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOut: () => Promise<void> }) {
   const [activeTab, setActiveTab] = useState<MainTab>("registration");
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(isRunningAsInstalledApp);
   const [toast, setToast] = useState("");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [courses, setCourses] = useState<CourseRecord[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
-  const [adminPage, setAdminPage] = useState<"workspace" | "courses">("workspace");
+  const [adminPage, setAdminPage] = useState<"workspace" | "settings" | "courses">("workspace");
   const isAdministrator = staffProfile.staff_role === "administrator";
   const [theme, setTheme] = useState<ThemeMode>(() => {
     try {
@@ -213,23 +210,15 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
   };
 
   const showComingSoon = (feature: string) => {
-    if (feature === "Course catalogue" && isAdministrator) {
-      setAdminPage("courses");
-      setSettingsOpen(false);
-      setMobileMenuOpen(false);
-      return;
-    }
     setToast(`${feature} will be connected in a later development task.`);
-    setSettingsOpen(false);
-    setMobileMenuOpen(false);
   };
 
   const switchTab = (tab: MainTab) => {
     setActiveTab(tab);
     setAdminPage("workspace");
-    setMobileMenuOpen(false);
-    setSettingsOpen(false);
   };
+
+  const openSettings = () => setAdminPage("settings");
 
   return (
     <div className="app-layout">
@@ -237,13 +226,8 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
         <Sidebar
           activeTab={activeTab}
           onNavigate={switchTab}
-          settingsOpen={settingsOpen}
-          onToggleSettings={() => setSettingsOpen((open) => !open)}
-          onSettingsAction={showComingSoon}
-          theme={theme}
-          onThemeChange={setTheme}
-          accentColor={accentColor}
-          onAccentChange={setAccentColor}
+          activePage={adminPage}
+          onOpenSettings={openSettings}
           isAdministrator={isAdministrator}
           staffProfile={staffProfile}
         />
@@ -264,21 +248,15 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
               <span className="staff-dot" />
               <span>{staffProfile.full_name} · {staffProfile.staff_role === "administrator" ? "Administrator" : "Lecturer"}</span>
             </div>
-            <button className="signout-button" type="button" onClick={() => void onSignOut()} aria-label="Sign out">
-              <LogOut size={16} />
-              <span>Sign out</span>
+            <button
+              className={adminPage === "workspace" ? "topbar-settings" : "topbar-settings active"}
+              type="button"
+              aria-label="Open Settings"
+              aria-current={adminPage === "settings" ? "page" : undefined}
+              onClick={openSettings}
+            >
+              <Settings size={17} />
             </button>
-            {isAdministrator && (
-              <button
-                className={mobileMenuOpen ? "topbar-settings active" : "topbar-settings"}
-                type="button"
-                aria-label="Open restricted settings"
-                aria-expanded={mobileMenuOpen}
-                onClick={() => setMobileMenuOpen((open) => !open)}
-              >
-                <Settings size={17} />
-              </button>
-            )}
             {!isInstalled && (
               <button className="install-button" onClick={handleInstall} type="button">
                 <Download size={16} />
@@ -289,11 +267,106 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
         </header>
 
         <main className="main-content">
-          {adminPage === "courses" && isAdministrator ? (
+          {adminPage === "settings" ? (
+            <div className="settings-page">
+              <div className="page-heading">
+                <div>
+                  <div className="eyebrow">PREFERENCES & ACCOUNT</div>
+                  <h1>Settings</h1>
+                  <p>Manage your CampusFace appearance, account and available controls.</p>
+                </div>
+              </div>
+
+              <section className="panel settings-section">
+                <div className="panel-heading">
+                  <div>
+                    <div className="eyebrow">PERSONALISE</div>
+                    <h2>Appearance</h2>
+                    <p>Choose how CampusFace looks on this device.</p>
+                  </div>
+                  <Palette size={20} />
+                </div>
+                <AppearanceSettings
+                  theme={theme}
+                  onThemeChange={setTheme}
+                  accentColor={accentColor}
+                  onAccentChange={setAccentColor}
+                />
+              </section>
+
+              {isAdministrator && (
+                <section className="panel settings-section">
+                  <div className="panel-heading">
+                    <div>
+                      <div className="eyebrow">ADMINISTRATOR CONTROLS</div>
+                      <h2>Academic and staff management</h2>
+                      <p>These controls are available only to authorised administrators.</p>
+                    </div>
+                    <ShieldCheck size={20} />
+                  </div>
+                  <button className="settings-action-row" type="button" onClick={() => setAdminPage("courses")}>
+                    <span className="settings-action-icon"><BookOpen size={18} /></span>
+                    <span className="settings-action-copy">
+                      <strong>Course catalogue</strong>
+                      <small>Add, rename, activate or deactivate courses</small>
+                    </span>
+                    <ArrowRight size={17} />
+                  </button>
+                  <button className="settings-action-row" type="button" onClick={() => showComingSoon("Faculty and department management")}>
+                    <span className="settings-action-icon"><Building2 size={18} /></span>
+                    <span className="settings-action-copy">
+                      <strong>Faculties and departments</strong>
+                      <small>Academic structure management</small>
+                    </span>
+                    <ArrowRight size={17} />
+                  </button>
+                  <button className="settings-action-row" type="button" onClick={() => showComingSoon("Staff and permissions")}>
+                    <span className="settings-action-icon"><Users size={18} /></span>
+                    <span className="settings-action-copy">
+                      <strong>Staff and permissions</strong>
+                      <small>Manage lecturer accounts and access roles</small>
+                    </span>
+                    <ArrowRight size={17} />
+                  </button>
+                </section>
+              )}
+
+              <section className="panel settings-section settings-account-section">
+                <div className="panel-heading">
+                  <div>
+                    <div className="eyebrow">SIGNED-IN ACCOUNT</div>
+                    <h2>Account</h2>
+                    <p>Your CampusFace staff identity and access status.</p>
+                  </div>
+                  <ShieldCheck size={20} />
+                </div>
+                <div className="settings-account-details">
+                  <div className="settings-account-avatar">
+                    {staffProfile.full_name.trim().charAt(0).toUpperCase()}
+                  </div>
+                  <div className="settings-account-copy">
+                    <strong>{staffProfile.full_name}</strong>
+                    <span>{staffProfile.staff_role === "administrator" ? "Administrator" : "Lecturer"}</span>
+                    <small><span className="staff-dot" /> Active staff access</small>
+                  </div>
+                </div>
+                <div className="settings-signout-area">
+                  <div>
+                    <strong>Sign out of CampusFace</strong>
+                    <span>End your current staff session on this device.</span>
+                  </div>
+                  <button className="settings-signout-button" type="button" onClick={() => void onSignOut()}>
+                    <LogOut size={16} />
+                    Sign out
+                  </button>
+                </div>
+              </section>
+            </div>
+          ) : adminPage === "courses" && isAdministrator ? (
             <CourseCataloguePage
               courses={courses}
               loading={coursesLoading}
-              onBack={() => setAdminPage("workspace")}
+              onBack={() => setAdminPage("settings")}
               onRefresh={refreshCourses}
             />
           ) : (
@@ -304,7 +377,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
               </div>
 
               {activeTab === "registration" ? (
-                <RegistrationPage onComingSoon={showComingSoon} courses={activeCourses} />
+                <RegistrationPage courses={activeCourses} />
               ) : (
                 <AttendancePage onComingSoon={showComingSoon} courses={activeCourses} />
               )}
@@ -331,26 +404,6 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
           </button>
         </nav>
 
-        {isAdministrator && mobileMenuOpen && (
-          <div className="mobile-settings-panel">
-            <div className="mobile-settings-head">
-              <strong>Settings</strong>
-              <button type="button" aria-label="Close settings" onClick={() => setMobileMenuOpen(false)}><X size={18} /></button>
-            </div>
-            <AppearanceSettings
-              theme={theme}
-              onThemeChange={setTheme}
-              accentColor={accentColor}
-              onAccentChange={setAccentColor}
-            />
-            <div className="settings-subheading">ADMINISTRATION</div>
-            <button type="button" onClick={() => showComingSoon("Course catalogue")}>Course catalogue <Lock size={14} /></button>
-            <button type="button" onClick={() => showComingSoon("Faculty and departments")}>Faculties & departments <Lock size={14} /></button>
-            <button type="button" onClick={() => showComingSoon("Staff and permissions")}>Staff & permissions <Lock size={14} /></button>
-            <p>Administrative controls will require administrator access.</p>
-          </div>
-        )}
-
         {toast && (
           <div className="toast-message" role="status">
             <Info size={17} />
@@ -366,13 +419,8 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
 type SidebarProps = {
   activeTab: MainTab;
   onNavigate: (tab: MainTab) => void;
-  settingsOpen: boolean;
-  onToggleSettings: () => void;
-  onSettingsAction: (feature: string) => void;
-  theme: ThemeMode;
-  onThemeChange: (theme: ThemeMode) => void;
-  accentColor: string;
-  onAccentChange: (color: string) => void;
+  activePage: "workspace" | "settings" | "courses";
+  onOpenSettings: () => void;
   isAdministrator: boolean;
   staffProfile: StaffProfile;
 };
@@ -380,13 +428,8 @@ type SidebarProps = {
 function Sidebar({
   activeTab,
   onNavigate,
-  settingsOpen,
-  onToggleSettings,
-  onSettingsAction,
-  theme,
-  onThemeChange,
-  accentColor,
-  onAccentChange,
+  activePage,
+  onOpenSettings,
   isAdministrator,
   staffProfile
 }: SidebarProps) {
@@ -404,69 +447,37 @@ function Sidebar({
       <nav className="sidebar-nav" aria-label="Main navigation">
         <button
           type="button"
-          className={activeTab === "registration" ? "sidebar-link selected" : "sidebar-link"}
+          className={activeTab === "registration" && activePage === "workspace" ? "sidebar-link selected" : "sidebar-link"}
           onClick={() => onNavigate("registration")}
         >
           <UserPlus size={19} />
           <span>Registration</span>
-          {activeTab === "registration" && <span className="nav-indicator" />}
+          {activeTab === "registration" && activePage === "workspace" && <span className="nav-indicator" />}
         </button>
         <button
           type="button"
-          className={activeTab === "attendance" ? "sidebar-link selected" : "sidebar-link"}
+          className={activeTab === "attendance" && activePage === "workspace" ? "sidebar-link selected" : "sidebar-link"}
           onClick={() => onNavigate("attendance")}
         >
           <ClipboardCheck size={19} />
           <span>Attendance</span>
-          {activeTab === "attendance" && <span className="nav-indicator" />}
+          {activeTab === "attendance" && activePage === "workspace" && <span className="nav-indicator" />}
         </button>
       </nav>
 
-      {isAdministrator && (
-        <>
-        <div className="sidebar-divider" />
-        <div className="sidebar-section-label">ADMINISTRATION</div>
-        <div className="settings-wrap">
-          <button
-            className={settingsOpen ? "sidebar-link settings-link selected-soft" : "sidebar-link settings-link"}
-            type="button"
-            aria-expanded={settingsOpen}
-            onClick={onToggleSettings}
-          >
-            <Settings size={19} />
-            <span>Restricted settings</span>
-            <ChevronDown className={settingsOpen ? "chevron rotated" : "chevron"} size={16} />
-          </button>
-
-          {settingsOpen && (
-            <div className="settings-dropdown">
-              <AppearanceSettings
-                theme={theme}
-                onThemeChange={onThemeChange}
-                accentColor={accentColor}
-                onAccentChange={onAccentChange}
-              />
-              <div className="settings-subheading">ADMINISTRATION</div>
-              <button type="button" onClick={() => onSettingsAction("Course catalogue")}>
-                <BookOpen size={16} />
-                <span>Course catalogue</span>
-                <Lock size={13} />
-              </button>
-              <button type="button" onClick={() => onSettingsAction("Faculties and departments")}>
-                <Building2 size={16} />
-                <span>Faculties & departments</span>
-                <Lock size={13} />
-              </button>
-              <button type="button" onClick={() => onSettingsAction("Staff and permissions")}>
-                <ShieldCheck size={16} />
-                <span>Staff & permissions</span>
-                <Lock size={13} />
-              </button>
-            </div>
-          )}
-        </div>
-        </>
-      )}
+      <div className="sidebar-divider" />
+      <div className="sidebar-section-label">ACCOUNT</div>
+      <nav className="sidebar-nav" aria-label="Account navigation">
+        <button
+          type="button"
+          className={activePage === "settings" || activePage === "courses" ? "sidebar-link selected" : "sidebar-link"}
+          onClick={onOpenSettings}
+        >
+          <Settings size={19} />
+          <span>Settings</span>
+          {(activePage === "settings" || activePage === "courses") && <span className="nav-indicator" />}
+        </button>
+      </nav>
 
       <div className="sidebar-spacer" />
       <div className="sidebar-security">
@@ -480,14 +491,13 @@ function Sidebar({
         <div className="profile-avatar">{staffProfile.full_name.trim().charAt(0).toUpperCase()}</div>
         <div className="profile-copy">
           <strong>{staffProfile.full_name}</strong>
-          <span>{staffProfile.staff_role === "administrator" ? "Administrator" : "Lecturer"}</span>
+          <span>{isAdministrator ? "Administrator" : "Lecturer"}</span>
         </div>
         <span className="profile-status" />
       </div>
     </div>
   );
 }
-
 
 type AppearanceSettingsProps = {
   theme: ThemeMode;
