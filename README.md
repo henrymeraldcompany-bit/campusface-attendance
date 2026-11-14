@@ -15,12 +15,13 @@ A lecturer-only university attendance management Progressive Web App (PWA), desi
 - Task 2: responsive lecturer web interface, persistent light/dark theme, and accent-colour settings.
 - PWA: Vite PWA plugin generates the web app manifest and service worker; browser installation uses the native install prompt.
 - Task 3: Supabase email/password sign-in is connected to the staff profile table. Only active lecturer and administrator profiles can enter the workspace.
-- Student records, academic database workflows, camera capture and attendance processing are still under development.
+- Task 4: the course catalogue is stored in PostgreSQL, includes the nine starter courses, and is managed by administrators. Active courses are supplied from Supabase to the registration course picker and attendance course selector. RLS permits active staff to read active courses and active administrators to add, rename, activate, or deactivate courses.
+- Student record saving, faculty/department records, camera capture and attendance processing are still under development.
 - Staff accounts must be provisioned by a trusted administrator; the app has no public sign-up or student login.
 
 ## Main application areas
 
-The two main workspace tabs are **Registration** and **Attendance**. Academic settings and staff permissions are grouped under a restricted settings menu and will require administrator access.
+The two main workspace tabs are **Registration** and **Attendance**. The **Course catalogue** is available to administrators under the restricted settings menu. Faculty/department management and staff administration will be implemented separately.
 
 ## Technology
 
