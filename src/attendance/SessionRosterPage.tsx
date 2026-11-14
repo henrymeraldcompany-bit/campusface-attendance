@@ -5,7 +5,9 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Clock,
+  Download,
   Lock,
+  Printer,
   Search,
   ShieldAlert,
   ShieldCheck,
@@ -62,6 +64,22 @@ function formatTime(value: string) {
     hour12: true,
     timeZone: "Africa/Lagos",
   }).format(new Date(value));
+}
+
+function csvCell(value: string | number | null | undefined) {
+  const raw = String(value ?? "");
+  // Prevent spreadsheet formula execution when a text field begins with a formula marker.
+  const safe = /^[\\s]*[=+\\-@]/.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
+function reportFileSlug(value: string) {
+  return value
+    .normalize("NFKD")
+    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60) || "class";
 }
 
 export function SessionRosterPage({ session, onBack }: Props) {
@@ -160,6 +178,14 @@ export function SessionRosterPage({ session, onBack }: Props) {
   const absentCount = Math.max(students.length - presentCount, 0);
   const attendanceRate = students.length > 0 ? (presentCount / students.length) * 100 : 0;
   const sessionEnded = sessionStatus === "ended";
+  const presentStudents = useMemo(
+    () => students.filter((student) => Boolean(attendanceByStudent[student.student_id])),
+    [students, attendanceByStudent],
+  );
+  const absentStudents = useMemo(
+    () => students.filter((student) => !attendanceByStudent[student.student_id]),
+    [students, attendanceByStudent],
+  );
 
   const confirmMarkPresent = async () => {
     if (!pendingStudent || marking) return;
@@ -246,6 +272,72 @@ export function SessionRosterPage({ session, onBack }: Props) {
     }
   };
 
+  const downloadCsvReport = () => {
+    if (!sessionEnded || loading || loadError) return;
+
+    const courseName = session.courses?.name ?? "Course unavailable";
+    const headers = [
+      "Class title",
+      "Course",
+      "Class date",
+      "Start time",
+      "Ended at",
+      "Eligible students",
+      "Present count",
+      "Absent count",
+      "Attendance rate (%)",
+      "Student name",
+      "Registration number",
+      "Gender",
+      "Faculty",
+      "Department",
+      "Attendance status",
+      "Marked at",
+      "Verification method",
+    ];
+
+    const rows = students.map((student) => {
+      const mark = attendanceByStudent[student.student_id];
+      return [
+        session.class_title,
+        courseName,
+        session.class_date,
+        session.start_time.slice(0, 5),
+        endedAt ?? "",
+        students.length,
+        presentCount,
+        absentCount,
+        attendanceRate.toFixed(1),
+        student.student_full_name,
+        student.registration_number,
+        student.gender,
+        student.faculty,
+        student.department,
+        mark ? "Present" : "Absent",
+        mark?.marked_at ?? "",
+        mark?.verification_method ?? "",
+      ];
+    });
+
+    const csv = "\\uFEFF" + [headers, ...rows]
+      .map((row) => row.map((value) => csvCell(value)).join(","))
+      .join("\\r\\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `CampusFace-${reportFileSlug(session.class_title)}-${session.class_date}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const printPdfReport = () => {
+    if (!sessionEnded || loading || loadError) return;
+    window.print();
+  };
+
   return (
     <>
       <div className="page-heading session-roster-heading">
@@ -308,6 +400,16 @@ export function SessionRosterPage({ session, onBack }: Props) {
               <p>The attendance figures are final because this session can no longer accept new marks.</p>
             </div>
             <ClipboardCheck size={21} />
+          </div>
+          <div className="session-export-actions">
+            <button className="secondary-button" type="button" onClick={downloadCsvReport} disabled={loading || Boolean(loadError)}>
+              <Download size={15} />
+              Download CSV
+            </button>
+            <button className="primary-button" type="button" onClick={printPdfReport} disabled={loading || Boolean(loadError)}>
+              <Printer size={15} />
+              Print / Save PDF
+            </button>
           </div>
           <div className="session-final-report-layout">
             <div className="session-final-rate">
@@ -450,6 +552,74 @@ export function SessionRosterPage({ session, onBack }: Props) {
           </div>
         )}
       </section>
+
+      {sessionEnded && !loading && !loadError && (
+        <section className="session-print-report" aria-label="Printable final attendance report">
+          <header className="session-print-header">
+            <div className="session-print-brand">CAMPUSFACE ATTENDANCE</div>
+            <h1>Final Attendance Report</h1>
+            <p>{session.class_title}</p>
+            <div className="session-print-metadata">
+              <span><strong>Course:</strong> {session.courses?.name ?? "Course unavailable"}</span>
+              <span><strong>Date:</strong> {formatDate(session.class_date)}</span>
+              <span><strong>Start time:</strong> {session.start_time.slice(0, 5)}</span>
+              <span><strong>Ended:</strong> {endedAt ? new Intl.DateTimeFormat("en-NG", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Lagos" }).format(new Date(endedAt)) : "Not available"}</span>
+            </div>
+          </header>
+
+          <section className="session-print-summary">
+            <div><strong>{students.length}</strong><span>Eligible</span></div>
+            <div><strong>{presentCount}</strong><span>Present</span></div>
+            <div><strong>{absentCount}</strong><span>Absent</span></div>
+            <div><strong>{attendanceRate.toFixed(1)}%</strong><span>Attendance rate</span></div>
+          </section>
+
+          <section className="session-print-section">
+            <h2>Present students ({presentStudents.length})</h2>
+            {presentStudents.length ? (
+              <table>
+                <thead><tr><th>No.</th><th>Student name</th><th>Registration no.</th><th>Faculty</th><th>Department</th><th>Marked at</th></tr></thead>
+                <tbody>
+                  {presentStudents.map((student, index) => (
+                    <tr key={student.student_id}>
+                      <td>{index + 1}</td>
+                      <td>{student.student_full_name}</td>
+                      <td>{student.registration_number}</td>
+                      <td>{student.faculty}</td>
+                      <td>{student.department}</td>
+                      <td>{attendanceByStudent[student.student_id] ? formatTime(attendanceByStudent[student.student_id].marked_at) : ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : <p className="session-print-empty">No students were marked present.</p>}
+          </section>
+
+          <section className="session-print-section">
+            <h2>Absent students ({absentStudents.length})</h2>
+            {absentStudents.length ? (
+              <table>
+                <thead><tr><th>No.</th><th>Student name</th><th>Registration no.</th><th>Faculty</th><th>Department</th></tr></thead>
+                <tbody>
+                  {absentStudents.map((student, index) => (
+                    <tr key={student.student_id}>
+                      <td>{index + 1}</td>
+                      <td>{student.student_full_name}</td>
+                      <td>{student.registration_number}</td>
+                      <td>{student.faculty}</td>
+                      <td>{student.department}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : <p className="session-print-empty">No students were absent.</p>}
+          </section>
+
+          <footer className="session-print-footer">
+            Generated by CampusFace Attendance. Present marks were recorded through manual staff verification.
+          </footer>
+        </section>
+      )}
 
       {confirmEndOpen && (
         <div className="confirmation-backdrop" role="presentation" onMouseDown={(event) => {
