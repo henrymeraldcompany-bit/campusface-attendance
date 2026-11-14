@@ -625,6 +625,8 @@ function AppearanceSettings({
   );
 }
 
+type AcademicFacultyOption = { id: string; name: string; is_active: boolean };
+type AcademicDepartmentOption = { id: string; faculty_id: string; name: string; is_active: boolean };
 type StudentRecord = ManagedStudentRecord;
 
 function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRecord[]; onOpenFaceReadiness: (student: ManagedStudentRecord) => void }) {
@@ -634,13 +636,16 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(true);
+  const [faculties, setFaculties] = useState<AcademicFacultyOption[]>([]);
+  const [departments, setDepartments] = useState<AcademicDepartmentOption[]>([]);
+  const [academicLoading, setAcademicLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formMessage, setFormMessage] = useState("");
   const [fullName, setFullName] = useState("");
   const [registrationNumber, setRegistrationNumber] = useState("");
   const [gender, setGender] = useState<"" | "female" | "male">("");
-  const [faculty, setFaculty] = useState("");
-  const [department, setDepartment] = useState("");
+  const [facultyId, setFacultyId] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
   const [editingStudent, setEditingStudent] = useState<ManagedStudentRecord | null>(null);
   const [studentStatusTarget, setStudentStatusTarget] = useState<ManagedStudentRecord | null>(null);
   const [updatingStudentStatus, setUpdatingStudentStatus] = useState(false);
@@ -649,7 +654,7 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
     setStudentsLoading(true);
     const { data, error } = await supabase
       .from("students")
-      .select("id, full_name, registration_number, gender, faculty, department, is_active, student_courses(course_id, courses(name))")
+      .select("id, full_name, registration_number, gender, faculty, department, faculty_id, department_id, is_active, student_courses(course_id, courses(name))")
       .order("full_name", { ascending: true });
 
     if (error) {
@@ -661,8 +666,27 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
     setStudentsLoading(false);
   };
 
+  const loadAcademicStructure = async () => {
+    setAcademicLoading(true);
+    const [facultyResult, departmentResult] = await Promise.all([
+      supabase.from("faculties").select("id, name, is_active").order("name", { ascending: true }),
+      supabase.from("departments").select("id, faculty_id, name, is_active").order("name", { ascending: true }),
+    ]);
+
+    if (facultyResult.error || departmentResult.error) {
+      setFaculties([]);
+      setDepartments([]);
+      setFormMessage("Faculty and department options could not be loaded. Ask the administrator to check the academic catalogue.");
+    } else {
+      setFaculties((facultyResult.data ?? []) as AcademicFacultyOption[]);
+      setDepartments((departmentResult.data ?? []) as AcademicDepartmentOption[]);
+    }
+    setAcademicLoading(false);
+  };
+
   useEffect(() => {
     void loadStudents();
+    void loadAcademicStructure();
   }, []);
 
   const toggleCourse = (courseId: string) => {
@@ -677,8 +701,8 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
     setFullName("");
     setRegistrationNumber("");
     setGender("");
-    setFaculty("");
-    setDepartment("");
+    setFacultyId("");
+    setDepartmentId("");
     setSelectedCourseIds([]);
     setCourseSearch("");
   };
@@ -720,6 +744,11 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
     event.preventDefault();
     if (saving) return;
 
+    if (!facultyId || !departmentId) {
+      setFormMessage("Select an active faculty and a department belonging to that faculty.");
+      return;
+    }
+
     if (selectedCourseIds.length === 0) {
       setFormMessage("Select at least one active course before saving the student.");
       return;
@@ -729,12 +758,12 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
     setFormMessage("");
 
     try {
-      const { error } = await supabase.rpc("register_student", {
+      const { error } = await supabase.rpc("register_student_with_academic_structure", {
         p_full_name: fullName.trim(),
         p_registration_number: registrationNumber.trim(),
         p_gender: gender,
-        p_faculty: faculty.trim(),
-        p_department: department.trim(),
+        p_faculty_id: facultyId,
+        p_department_id: departmentId,
         p_course_ids: selectedCourseIds,
       });
 
@@ -775,6 +804,10 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
     course.is_active && course.name.toLowerCase().includes(courseSearch.trim().toLowerCase())
   );
   const activeCourseCount = courses.filter((course) => course.is_active).length;
+  const activeFaculties = faculties.filter((facultyOption) => facultyOption.is_active);
+  const availableDepartments = departments.filter((departmentOption) =>
+    departmentOption.faculty_id === facultyId && departmentOption.is_active
+  );
   const activeStudentCount = students.filter((student) => student.is_active).length;
   const archivedStudentCount = students.length - activeStudentCount;
 
@@ -865,31 +898,40 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
               </label>
               <label className="field">
                 <span>Faculty</span>
-                <input
-                  type="text"
-                  value={faculty}
-                  onChange={(event) => setFaculty(event.target.value)}
-                  placeholder="Enter faculty"
-                  minLength={2}
-                  maxLength={120}
-                  autoComplete="off"
+                <select
+                  value={facultyId}
+                  onChange={(event) => {
+                    setFacultyId(event.target.value);
+                    setDepartmentId("");
+                  }}
                   required
-                  disabled={saving}
-                />
+                  disabled={saving || academicLoading || activeFaculties.length === 0}
+                >
+                  <option value="" disabled>{academicLoading ? "Loading faculties..." : "Select faculty"}</option>
+                  {activeFaculties.map((facultyOption) => (
+                    <option key={facultyOption.id} value={facultyOption.id}>{facultyOption.name}</option>
+                  ))}
+                </select>
+                {!academicLoading && activeFaculties.length === 0 && (
+                  <small className="field-help">No active faculties yet. Ask an administrator to add one in Settings.</small>
+                )}
               </label>
               <label className="field">
                 <span>Department</span>
-                <input
-                  type="text"
-                  value={department}
-                  onChange={(event) => setDepartment(event.target.value)}
-                  placeholder="Enter department"
-                  minLength={2}
-                  maxLength={120}
-                  autoComplete="off"
+                <select
+                  value={departmentId}
+                  onChange={(event) => setDepartmentId(event.target.value)}
                   required
-                  disabled={saving}
-                />
+                  disabled={saving || academicLoading || !facultyId || availableDepartments.length === 0}
+                >
+                  <option value="" disabled>{!facultyId ? "Select a faculty first" : "Select department"}</option>
+                  {availableDepartments.map((departmentOption) => (
+                    <option key={departmentOption.id} value={departmentOption.id}>{departmentOption.name}</option>
+                  ))}
+                </select>
+                {facultyId && availableDepartments.length === 0 && (
+                  <small className="field-help">No active departments exist under this faculty yet.</small>
+                )}
               </label>
             </div>
 
@@ -941,7 +983,7 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
 
             <div className="form-footer">
               <p><ShieldCheck size={14} /> Student information is saved securely for authorised staff only.</p>
-              <button type="submit" className="secondary-button" disabled={saving || activeCourseCount === 0}>
+              <button type="submit" className="secondary-button" disabled={saving || activeCourseCount === 0 || activeAcademicFaculties.length === 0 || !facultyId || !departmentId || academicLoading}>
                 {saving ? "Saving student..." : "Save student"}
                 <ArrowRight size={16} />
               </button>
@@ -1035,6 +1077,8 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
         <EditStudentDialog
           student={editingStudent}
           courses={courses}
+          faculties={faculties}
+          departments={departments}
           onClose={() => setEditingStudent(null)}
           onSaved={loadStudents}
         />
