@@ -61,6 +61,13 @@ export function AuthGate({ children }: AuthGateProps) {
   // refreshes access tokens periodically; that should not send staff back
   // through the profile-verification loading screen.
   const userId = session?.user?.id ?? null;
+  const inviteSetupMode = session?.user?.user_metadata?.campusface_invitation_pending === true;
+  const inviteName = typeof session?.user?.user_metadata?.full_name === "string"
+    ? session.user.user_metadata.full_name
+    : profile?.full_name ?? "";
+  const inviteCourseNames = typeof session?.user?.user_metadata?.campusface_course_names === "string"
+    ? session.user.user_metadata.campusface_course_names
+    : "";
 
   useEffect(() => {
     let mounted = true;
@@ -280,15 +287,22 @@ export function AuthGate({ children }: AuthGateProps) {
 
   const handleUpdatePassword = async (password: string) => {
     try {
+      const updatePayload = inviteSetupMode
+        ? { password, data: { campusface_invitation_pending: false } }
+        : { password };
       const { error } = await withTimeout(
-        supabase.auth.updateUser({ password }),
+        supabase.auth.updateUser(updatePayload),
         15_000,
         () => undefined,
         "PASSWORD_UPDATE_TIMEOUT",
       );
 
       if (error) {
-        setMessage("The password could not be updated. Reopen the latest password-reset email and try again.");
+        setMessage(
+          inviteSetupMode
+            ? "Your new password could not be saved. Reopen the invitation link and try again."
+            : "The password could not be updated. Reopen the latest password-reset email and try again.",
+        );
         return;
       }
 
@@ -299,8 +313,10 @@ export function AuthGate({ children }: AuthGateProps) {
       setStatus("signed-out");
       setMessage(
         signOutError
-          ? "Your password was updated. Please reload this page, then sign in with your new password."
-          : "Your password was updated successfully. Sign in with your new password.",
+          ? "Your password was saved. Reload this page, then sign in with your new password."
+          : inviteSetupMode
+            ? "Your CampusFace account is ready. Sign in with your email and new password."
+            : "Your password was updated successfully. Sign in with your new password.",
       );
     } catch {
       setMessage("Updating the password took too long. Check your connection and try again.");
@@ -322,6 +338,21 @@ export function AuthGate({ children }: AuthGateProps) {
     setMessage("");
     setStatus("signed-out");
   };
+
+  if (status === "ready" && profile && inviteSetupMode) {
+    return (
+      <LoginScreen
+        onSignIn={handleSignIn}
+        message={message}
+        onRequestPasswordReset={handlePasswordReset}
+        recoveryMode={false}
+        inviteSetupMode
+        inviteName={inviteName}
+        inviteCourseNames={inviteCourseNames}
+        onUpdatePassword={handleUpdatePassword}
+      />
+    );
+  }
 
   if (status === "ready" && profile) {
     return <>{children(profile, handleSignOut)}</>;
@@ -371,6 +402,9 @@ export function AuthGate({ children }: AuthGateProps) {
       message={message}
       onRequestPasswordReset={handlePasswordReset}
       recoveryMode={recoveryMode}
+      inviteSetupMode={false}
+      inviteName=""
+      inviteCourseNames=""
       onUpdatePassword={handleUpdatePassword}
     />
   );
