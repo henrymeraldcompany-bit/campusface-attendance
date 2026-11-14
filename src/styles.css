@@ -1918,3 +1918,214 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .attendance-form-panel .form-grid { grid-template-columns: 1fr; }
   .attendance-table { min-width: 740px; }
 }
+
+
+/* Faculty and department administration */
+.academic-page-heading,
+.staff-admin-heading { align-items: center; }
+.academic-page-heading .secondary-button,
+.staff-admin-heading .secondary-button { flex: 0 0 auto; white-space: nowrap; }
+.academic-admin-panel,
+.staff-admin-panel { margin-bottom: 16px; }
+.academic-add-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 13px;
+}
+.academic-add-form .field { min-width: 0; }
+.academic-add-form .primary-button { min-height: 42px; }
+.academic-faculty-list { display: grid; gap: 12px; }
+.academic-faculty-card {
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--canvas);
+}
+.academic-faculty-head,
+.academic-department-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.academic-faculty-head { padding-bottom: 12px; }
+.academic-record-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.academic-record-main > strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+.academic-record-main > span:not(.course-admin-status) {
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 650;
+}
+.academic-department-list {
+  display: grid;
+  padding-left: 18px;
+  border-left: 2px solid var(--line);
+}
+.academic-department-row {
+  min-height: 49px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+}
+.academic-department-list > p {
+  margin: 8px 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.academic-record-main .course-admin-edit-input {
+  width: min(100%, 260px);
+}
+
+/* Staff invitation and access administration */
+.staff-invite-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 13px;
+  align-items: end;
+}
+.staff-invite-form .field { min-width: 0; }
+.staff-invite-form .primary-button {
+  min-height: 42px;
+  justify-content: center;
+}
+.staff-admin-note {
+  margin: 13px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+.staff-admin-list { display: grid; }
+.staff-admin-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-top: 1px solid var(--line);
+}
+.staff-admin-avatar {
+  display: grid;
+  width: 39px;
+  height: 39px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--teal-dark);
+  background: var(--teal-light);
+  font-size: 14px;
+  font-weight: 800;
+}
+.staff-admin-main {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 4px;
+}
+.staff-admin-main strong {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+.staff-admin-main > span {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 9px;
+}
+.staff-admin-main small {
+  color: #30815b;
+  font-size: 8px;
+  font-weight: 700;
+}
+.staff-admin-controls {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 9px;
+  flex: 0 0 auto;
+}
+.staff-role-select {
+  display: grid;
+  gap: 4px;
+}
+.staff-role-select > span {
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.staff-role-select select {
+  min-height: 34px;
+  max-width: 130px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: var(--surface);
+  font-size: 9px;
+}
+.staff-error-message {
+  color: #a34840;
+  border-color: #ead2cf;
+  background: #fff8f7;
+}
+:root[data-theme="dark"] .academic-faculty-card {
+  border-color: #34495a;
+  background: #102233;
+}
+:root[data-theme="dark"] .academic-record-main > strong,
+:root[data-theme="dark"] .academic-record-main > span:not(.course-admin-status),
+:root[data-theme="dark"] .staff-admin-main strong { color: #e4edf5; }
+:root[data-theme="dark"] .staff-admin-avatar {
+  color: #d7f0ed;
+  background: rgba(var(--accent-rgb, 22,123,123), .2);
+}
+:root[data-theme="dark"] .staff-role-select select {
+  border-color: #34495a;
+  color: #e4edf5;
+  background: #102233;
+}
+:root[data-theme="dark"] .staff-error-message {
+  color: #f0b8b0;
+  border-color: #68423e;
+  background: #332421;
+}
+
+@media (max-width: 760px) {
+  .academic-page-heading,
+  .staff-admin-heading { align-items: stretch; flex-direction: column; }
+  .academic-page-heading .secondary-button,
+  .staff-admin-heading .secondary-button { width: 100%; justify-content: center; }
+  .academic-add-form,
+  .staff-invite-form { grid-template-columns: 1fr; }
+  .academic-add-form .primary-button,
+  .staff-invite-form .primary-button { width: 100%; justify-content: center; }
+  .academic-admin-panel,
+  .staff-admin-panel { padding: 15px; }
+  .academic-faculty-card { padding: 11px; }
+  .academic-faculty-head,
+  .academic-department-row { align-items: flex-start; flex-direction: column; }
+  .academic-faculty-head .course-admin-actions,
+  .academic-department-row .course-admin-actions { width: 100%; flex-wrap: wrap; }
+  .academic-department-list { padding-left: 10px; }
+  .staff-admin-row { align-items: flex-start; flex-wrap: wrap; }
+  .staff-admin-main { flex-basis: calc(100% - 55px); }
+  .staff-admin-controls {
+    width: 100%;
+    justify-content: space-between;
+    padding-left: 51px;
+  }
+  .staff-role-select { flex: 1; }
+  .staff-role-select select { width: 100%; max-width: none; min-height: 38px; }
+  .staff-admin-controls > button { min-height: 38px; }
+}
