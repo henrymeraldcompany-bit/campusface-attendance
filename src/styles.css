@@ -2538,8 +2538,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   body * {
     visibility: hidden !important;
   }
-  .session-print-report,
-  .session-print-report * {
+  body .session-print-report,
+  body .session-print-report * {
     visibility: visible !important;
   }
   .session-print-report {
