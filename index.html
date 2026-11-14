@@ -5,28 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#102336" />
     <meta name="description" content="CampusFace Attendance — a secure workspace for authorised lecturers and administrators." />
+    <meta name="application-name" content="CampusFace Attendance" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <title>CampusFace Attendance</title>
   </head>
   <body>
     <div id="root"></div>
-    <script>
-      // Remove registrations left behind by the previous PWA build.
-      // CampusFace now distributes Android as a signed APK instead.
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker.getRegistrations()
-            .then((registrations) => Promise.all(
-              registrations
-                .filter((registration) =>
-                  new URL(registration.scope).pathname.startsWith("/campusface-attendance/")
-                )
-                .map((registration) => registration.unregister())
-            ))
-            .catch(() => {});
-        });
-      }
-    </script>
     <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>
