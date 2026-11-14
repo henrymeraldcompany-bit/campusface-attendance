@@ -224,9 +224,18 @@ export function SessionRosterPage({ session, onBack }: Props) {
       </section>
 
       <section className="stats-grid session-attendance-stats" aria-label="Session attendance totals">
-        <StatCard icon={<Users size={18} />} label="Eligible" value={String(students.length)} note="Fixed session snapshot" />
-        <StatCard icon={<CheckCircle2 size={18} />} label="Present" value={String(presentCount)} note="Manually verified" />
-        <StatCard icon={<Clock size={18} />} label="Not yet marked" value={String(absentCount)} note="Pending review, not final absence" />
+        <article className="stat-card">
+          <div className="stat-icon"><Users size={18} /></div>
+          <div className="stat-copy"><span>Eligible</span><strong>{students.length}</strong><small>Fixed session snapshot</small></div>
+        </article>
+        <article className="stat-card">
+          <div className="stat-icon"><CheckCircle2 size={18} /></div>
+          <div className="stat-copy"><span>Present</span><strong>{presentCount}</strong><small>Manually verified</small></div>
+        </article>
+        <article className="stat-card">
+          <div className="stat-icon"><Clock size={18} /></div>
+          <div className="stat-copy"><span>Not yet marked</span><strong>{absentCount}</strong><small>Pending review, not final absence</small></div>
+        </article>
       </section>
 
       <section className="panel session-identification-panel">
