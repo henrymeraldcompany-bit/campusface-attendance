@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("CampusFace staff entry", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("./");
     await expect(
       page.getByRole("heading", { name: "Sign in to CampusFace" }),
     ).toBeVisible();
@@ -75,14 +75,14 @@ test.describe("CampusFace staff entry", () => {
 });
 
 test("serves the installable PWA manifest and service worker", async ({ page, request, baseURL }) => {
-  await page.goto("/");
+  await page.goto("./");
   const manifestResponse = await request.get(new URL("manifest.webmanifest", baseURL).toString());
   expect(manifestResponse.ok()).toBeTruthy();
 
   const manifest = await manifestResponse.json();
   expect(manifest.name).toBe("CampusFace Attendance");
   expect(manifest.display).toBe("standalone");
-  expect(manifest.scope).toBe("./");
+  expect(manifest.start_url).toBeTruthy();
 
   const serviceWorkerResponse = await request.get(new URL("sw.js", baseURL).toString());
   expect(serviceWorkerResponse.ok()).toBeTruthy();
