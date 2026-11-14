@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
   BookOpen,
   Building2,
@@ -18,6 +19,7 @@ import {
   LogOut,
   Moon,
   Palette,
+  Pencil,
   Sun,
   Plus,
   Search,
@@ -31,6 +33,7 @@ import "./styles.css";
 import type { StaffProfile } from "./auth/AuthGate";
 import { CourseCataloguePage, type CourseRecord } from "./admin/CourseCataloguePage";
 import { supabase } from "./lib/supabase";
+import { EditStudentDialog, type ManagedStudentRecord } from "./registration/EditStudentDialog";
 
 type MainTab = "registration" | "attendance";
 type ThemeMode = "light" | "dark";
@@ -82,6 +85,8 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
   const [courses, setCourses] = useState<CourseRecord[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [adminPage, setAdminPage] = useState<"workspace" | "settings" | "courses">("workspace");
+  const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const isAdministrator = staffProfile.staff_role === "administrator";
   const [theme, setTheme] = useState<ThemeMode>(() => {
     try {
@@ -220,6 +225,17 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
 
   const openSettings = () => setAdminPage("settings");
 
+  const confirmSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await onSignOut();
+    } finally {
+      setSigningOut(false);
+      setSignOutConfirmOpen(false);
+    }
+  };
+
   return (
     <div className="app-layout">
       <aside className="desktop-sidebar">
@@ -269,12 +285,16 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
         <main className="main-content">
           {adminPage === "settings" ? (
             <div className="settings-page">
-              <div className="page-heading">
+              <div className="page-heading settings-page-heading">
                 <div>
                   <div className="eyebrow">PREFERENCES & ACCOUNT</div>
                   <h1>Settings</h1>
                   <p>Manage your CampusFace appearance, account and available controls.</p>
                 </div>
+                <button className="secondary-button settings-back-button" type="button" onClick={() => setAdminPage("workspace")}>
+                  <ArrowLeft size={16} />
+                  Back to workspace
+                </button>
               </div>
 
               <section className="panel settings-section">
@@ -355,7 +375,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
                     <strong>Sign out of CampusFace</strong>
                     <span>End your current staff session on this device.</span>
                   </div>
-                  <button className="settings-signout-button" type="button" onClick={() => void onSignOut()}>
+                  <button className="settings-signout-button" type="button" onClick={() => setSignOutConfirmOpen(true)}>
                     <LogOut size={16} />
                     Sign out
                   </button>
@@ -409,6 +429,27 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
             <Info size={17} />
             <span>{toast}</span>
             <button type="button" aria-label="Dismiss message" onClick={() => setToast("")}><X size={16} /></button>
+          </div>
+        )}
+
+        {signOutConfirmOpen && (
+          <div className="confirmation-backdrop" role="presentation" onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !signingOut) setSignOutConfirmOpen(false);
+          }}>
+            <section className="confirmation-dialog" role="alertdialog" aria-modal="true" aria-labelledby="signout-confirm-title" aria-describedby="signout-confirm-description">
+              <div className="confirmation-icon"><LogOut size={22} /></div>
+              <h2 id="signout-confirm-title">Sign out of CampusFace?</h2>
+              <p id="signout-confirm-description">You will leave your staff workspace and return to the sign-in screen. Any unsaved changes will be lost.</p>
+              <div className="confirmation-actions">
+                <button className="course-admin-text-button" type="button" onClick={() => setSignOutConfirmOpen(false)} disabled={signingOut}>
+                  Stay signed in
+                </button>
+                <button className="settings-signout-button" type="button" onClick={() => void confirmSignOut()} disabled={signingOut}>
+                  <LogOut size={16} />
+                  {signingOut ? "Signing out..." : "Yes, sign out"}
+                </button>
+              </div>
+            </section>
           </div>
         )}
       </div>
@@ -570,17 +611,7 @@ type PageActionProps = {
   courses: CourseRecord[];
 };
 
-type StudentRecord = {
-  id: string;
-  full_name: string;
-  registration_number: string;
-  gender: "female" | "male";
-  faculty: string;
-  department: string;
-  student_courses: Array<{
-    courses: { name: string } | null;
-  }>;
-};
+type StudentRecord = ManagedStudentRecord;
 
 function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
   const [formOpen, setFormOpen] = useState(false);
@@ -596,12 +627,15 @@ function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
   const [gender, setGender] = useState<"" | "female" | "male">("");
   const [faculty, setFaculty] = useState("");
   const [department, setDepartment] = useState("");
+  const [editingStudent, setEditingStudent] = useState<ManagedStudentRecord | null>(null);
+  const [studentStatusTarget, setStudentStatusTarget] = useState<ManagedStudentRecord | null>(null);
+  const [updatingStudentStatus, setUpdatingStudentStatus] = useState(false);
 
   const loadStudents = async () => {
     setStudentsLoading(true);
     const { data, error } = await supabase
       .from("students")
-      .select("id, full_name, registration_number, gender, faculty, department, student_courses(courses(name))")
+      .select("id, full_name, registration_number, gender, faculty, department, is_active, student_courses(course_id, courses(name))")
       .order("full_name", { ascending: true });
 
     if (error) {
@@ -633,6 +667,39 @@ function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
     setDepartment("");
     setSelectedCourseIds([]);
     setCourseSearch("");
+  };
+
+  const confirmStudentStatusChange = async () => {
+    const student = studentStatusTarget;
+    if (!student || updatingStudentStatus) return;
+
+    setUpdatingStudentStatus(true);
+    setFormMessage("");
+    try {
+      const { error } = await supabase
+        .from("students")
+        .update({ is_active: !student.is_active })
+        .eq("id", student.id);
+
+      if (error) {
+        setFormMessage(
+          error.code === "42501"
+            ? "Your staff account is not authorised to change this student status."
+            : "The student status could not be updated. Check your connection and try again.",
+        );
+        return;
+      }
+
+      setStudentStatusTarget(null);
+      setFormMessage(
+        student.is_active
+          ? "Student record archived. The record and course history have been retained."
+          : "Student record reactivated successfully.",
+      );
+      await loadStudents();
+    } finally {
+      setUpdatingStudentStatus(false);
+    }
   };
 
   const handleRegistrationSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -691,8 +758,10 @@ function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
   });
 
   const filteredCourses = courses.filter((course) =>
-    course.name.toLowerCase().includes(courseSearch.trim().toLowerCase())
+    course.is_active && course.name.toLowerCase().includes(courseSearch.trim().toLowerCase())
   );
+  const activeStudentCount = students.filter((student) => student.is_active).length;
+  const archivedStudentCount = students.length - activeStudentCount;
 
   return (
     <>
@@ -712,9 +781,9 @@ function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
       </div>
 
       <section className="stats-grid" aria-label="Registration overview">
-        <StatCard icon={<Users size={19} />} label="Registered students" value={String(students.length)} note="Saved student records" />
+        <StatCard icon={<Users size={19} />} label="Active students" value={String(activeStudentCount)} note="Available student records" />
         <StatCard icon={<BookOpen size={19} />} label="Available courses" value={String(courses.length)} note="Active catalogue courses" />
-        <StatCard icon={<Camera size={19} />} label="Face profiles" value="0" note="Not part of this task" />
+        <StatCard icon={<Lock size={19} />} label="Archived students" value={String(archivedStudentCount)} note="Retained historical records" />
       </section>
 
       {formMessage && (
@@ -894,7 +963,8 @@ function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
                   <th>REGISTRATION NUMBER</th>
                   <th>FACULTY / DEPARTMENT</th>
                   <th>COURSES</th>
-                  <th>FACE PROFILE</th>
+                  <th>STATUS</th>
+                  <th>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
@@ -903,12 +973,26 @@ function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
                     .map((enrolment) => enrolment.courses?.name)
                     .filter((name): name is string => Boolean(name));
                   return (
-                    <tr key={student.id}>
+                    <tr key={student.id} className={!student.is_active ? "student-row-archived" : undefined}>
                       <td><strong className="student-name-cell">{student.full_name}</strong></td>
                       <td>{student.registration_number}</td>
                       <td><span className="student-academic-cell">{student.faculty}<small>{student.department}</small></span></td>
                       <td>{courseNames.length ? courseNames.join(", ") : "No course listed"}</td>
-                      <td><span className="student-face-pending">Not registered</span></td>
+                      <td><span className={student.is_active ? "student-status-pill active" : "student-status-pill archived"}>{student.is_active ? "Active" : "Archived"}</span></td>
+                      <td>
+                        <div className="student-row-actions">
+                          <button className="student-edit-button" type="button" onClick={() => setEditingStudent(student)}>
+                            <Pencil size={13} /> Edit
+                          </button>
+                          <button
+                            className={student.is_active ? "student-archive-button" : "student-reactivate-button"}
+                            type="button"
+                            onClick={() => setStudentStatusTarget(student)}
+                          >
+                            {student.is_active ? "Archive" : "Reactivate"}
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -923,6 +1007,44 @@ function RegistrationPage({ courses }: { courses: CourseRecord[] }) {
           />
         )}
       </section>
+
+      {editingStudent && (
+        <EditStudentDialog
+          student={editingStudent}
+          courses={courses}
+          onClose={() => setEditingStudent(null)}
+          onSaved={loadStudents}
+        />
+      )}
+
+      {studentStatusTarget && (
+        <div className="confirmation-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget && !updatingStudentStatus) setStudentStatusTarget(null);
+        }}>
+          <section className="confirmation-dialog" role="alertdialog" aria-modal="true" aria-labelledby="student-status-title" aria-describedby="student-status-description">
+            <div className="confirmation-icon">
+              {studentStatusTarget.is_active ? <Lock size={22} /> : <Check size={22} />}
+            </div>
+            <h2 id="student-status-title">{studentStatusTarget.is_active ? "Archive this student?" : "Reactivate this student?"}</h2>
+            <p id="student-status-description">
+              {studentStatusTarget.is_active
+                ? "This student will be marked inactive for future use. Their record and course history will be retained."
+                : "This student will become active again and can be included in future academic workflows."}
+            </p>
+            <div className="confirmation-actions">
+              <button className="course-admin-text-button" type="button" onClick={() => setStudentStatusTarget(null)} disabled={updatingStudentStatus}>Cancel</button>
+              <button
+                className={studentStatusTarget.is_active ? "settings-signout-button" : "primary-button"}
+                type="button"
+                onClick={() => void confirmStudentStatusChange()}
+                disabled={updatingStudentStatus}
+              >
+                {updatingStudentStatus ? "Saving..." : studentStatusTarget.is_active ? "Archive student" : "Reactivate student"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </>
   );
 }
