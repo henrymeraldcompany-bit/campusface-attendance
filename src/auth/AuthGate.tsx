@@ -158,8 +158,8 @@ export function AuthGate({ children }: AuthGateProps) {
             .from("staff_profiles")
             .select("id, full_name, staff_role, is_active")
             .eq("id", userId)
-            .maybeSingle()
-            .abortSignal(controller.signal),
+            .abortSignal(controller.signal)
+            .maybeSingle(),
           STAFF_PROFILE_TIMEOUT_MS,
           () => controller.abort(),
           "STAFF_PROFILE_TIMEOUT",
