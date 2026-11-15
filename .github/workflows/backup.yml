@@ -173,7 +173,7 @@ jobs:
       - name: Upload encrypted backup artifact
         uses: actions/upload-artifact@v4
         with:
-          name: campusface-encrypted-db-backup-$GITHUB_RUN_ID
-          path: ${{ runner.temp }}/campusface-backup-$GITHUB_RUN_ID.tar.gz.gpg
+          name: campusface-encrypted-db-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/campusface-backup-${{ github.run_id }}.tar.gz.gpg
           if-no-files-found: error
           retention-days: 14
