@@ -112,7 +112,19 @@ A recovery rehearsal is only complete when all of the following pass on the isol
 - [ ] Biometric processing remains disabled unless separately approved.
 - [ ] No student/staff data or secrets were exposed in repository files or workflow logs.
 
-## 6. Current Task 16 completion status
+## 6. First confirmed backup and current Task 16 status
+
+### First confirmed encrypted backup — 15 November 2026
+
+- Workflow run: [43770471581](https://github.com/henrymeraldcompany-bit/campusface-attendance/actions/runs/43770471581)
+- Result: successful.
+- The run validated all 12 CampusFace application table definitions, created the roles/schema/data exports, encrypted the archive with GPG AES-256, verified decryption and tar readability, and uploaded the encrypted artifact.
+- Artifact: `campusface-encrypted-db-backup-43770471581`
+- GitHub artifact size: 11,644 bytes.
+- GitHub retention expiry: 29 November 2026.
+- An encrypted ZIP copy has also been prepared for the project owner to download and retain privately. The matching `CAMPUSFACE_BACKUP_PASSPHRASE` must be kept separately.
+
+## 7. Current Task 16 completion status
 
 - [x] Confirmed the Supabase Free plan has no automatic daily database backups.
 - [x] Inspected the live database inventory, RLS status, Auth account count, Storage bucket count, and Edge Function deployment.
