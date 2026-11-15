@@ -1,6 +1,11 @@
 name: CampusFace encrypted database backup
 
 on:
+  # Run once automatically when this backup workflow is changed, so a fix can
+  # be verified without asking the project owner to press Run workflow.
+  push:
+    paths:
+      - ".github/workflows/backup.yml"
   schedule:
     # 02:15 UTC = 03:15 in Nigeria (WAT)
     - cron: "15 2 * * *"
@@ -60,6 +65,14 @@ jobs:
           ARCHIVE="$RUNNER_TEMP/campusface-backup.tar.gz"
           ENCRYPTED="$RUNNER_TEMP/campusface-backup-${GITHUB_RUN_ID}.tar.gz.gpg"
           PASSPHRASE_FILE="$RUNNER_TEMP/campusface-backup-passphrase"
+          SCHEMA_NORMALIZED="$RUNNER_TEMP/campusface-schema-normalized.sql"
+          DATA_NORMALIZED="$RUNNER_TEMP/campusface-data-normalized.sql"
+
+          cleanup() {
+            rm -rf "$BACKUP_DIR"
+            rm -f "$ARCHIVE" "$PASSPHRASE_FILE" "$SCHEMA_NORMALIZED" "$DATA_NORMALIZED"
+          }
+          trap cleanup EXIT
 
           mkdir -p "$BACKUP_DIR"
           umask 077
@@ -82,21 +95,23 @@ jobs:
           done
 
           # pg_dump may quote SQL identifiers (for example, "public"."faculties").
-          # Remove identifier quotes only in the validation stream so both quoted and
-          # unquoted pg_dump output formats are recognised. The original dumps stay intact.
+          # Write normalized copies first, then search the files directly. Do not pipe
+          # sed into grep -q: with pipefail enabled, grep's early exit can SIGPIPE sed
+          # and falsely report a missing table even when a match exists.
+          sed 's/"//g' "$BACKUP_DIR/schema.sql" > "$SCHEMA_NORMALIZED"
+          sed 's/"//g' "$BACKUP_DIR/data.sql" > "$DATA_NORMALIZED"
+
           for table in faculties departments courses staff_profiles students student_courses \
                        lecturer_course_assignments attendance_sessions session_enrolment_snapshots \
                        attendance_records staff_management_audit biometric_processing_gate; do
-            if ! sed 's/"//g' "$BACKUP_DIR/schema.sql" \
-              | grep -Eiq "^[[:space:]]*CREATE TABLE([[:space:]]+IF NOT EXISTS)?[[:space:]]+public\\.$table([[:space:]]|\\()"; then
+            if ! grep -Eiq "^[[:space:]]*CREATE TABLE([[:space:]]+IF NOT EXISTS)?[[:space:]]+public\\.$table([[:space:]]|\\()" "$SCHEMA_NORMALIZED"; then
               echo "::error::Expected CampusFace table is missing from schema dump: $table"
               exit 1
             fi
           done
 
           for table in staff_profiles courses students attendance_sessions attendance_records; do
-            if ! sed 's/"//g' "$BACKUP_DIR/data.sql" \
-              | grep -Eiq "^[[:space:]]*COPY[[:space:]]+public\\.$table([[:space:]]|\\()"; then
+            if ! grep -Eiq "^[[:space:]]*COPY[[:space:]]+public\\.$table([[:space:]]|\\()" "$DATA_NORMALIZED"; then
               echo "::error::Expected CampusFace data section is missing: $table"
               exit 1
             fi
@@ -131,7 +146,7 @@ jobs:
 
           # Remove all plaintext database exports and the passphrase file before artifact upload.
           rm -rf "$BACKUP_DIR"
-          rm -f "$ARCHIVE" "$PASSPHRASE_FILE"
+          rm -f "$ARCHIVE" "$PASSPHRASE_FILE" "$SCHEMA_NORMALIZED" "$DATA_NORMALIZED"
 
       - name: Upload encrypted backup artifact
         uses: actions/upload-artifact@v4
