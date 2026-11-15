@@ -22,9 +22,9 @@ The repository is public. Never commit student/staff records, database exports, 
 The workflow is `.github/workflows/backup.yml`.
 
 Once its two GitHub repository secrets have been configured, it:
-1. Runs every day at 02:15 UTC (03:15 Nigeria time), and can also be started manually from GitHub Actions.
-2. Uses the official Supabase CLI to export database roles, custom schema, and non-managed application data.
-3. Checks that all 12 current CampusFace application tables are present and checks that key application data sections were exported. The validation recognises both quoted and unquoted PostgreSQL identifiers without modifying the actual SQL dumps.
+1. Runs every day at 02:15 UTC (03:15 Nigeria time). It also runs automatically when the backup workflow file is updated on the main branch, so the first post-fix backup does not require the owner to open Actions and press Run workflow. Manual triggering remains available if needed.
+2. Uses the official Supabase CLI to export database roles, the CampusFace public application schema, and its data. The schema and data commands explicitly target the public schema; the CLI also filters out Supabase-managed schemas and extension-owned objects.
+3. Checks that all 12 current CampusFace application table definitions are present using a whitespace- and identifier-quote-tolerant parser, then checks that the data export is non-empty. This replaces the previous brittle line-anchored grep checks. The validation recognises both quoted and unquoted PostgreSQL identifiers without modifying the actual SQL dumps.
 4. Packages the SQL files and manifest, then encrypts the archive with GPG AES-256.
 5. Decrypts the archive in-memory through a pipe to verify that the password works and the archive is readable.
 6. Uploads only the encrypted archive as a GitHub Actions artifact with 14-day retention. Plaintext SQL files and the passphrase file are removed before upload.
@@ -35,7 +35,7 @@ The repository is public, so artifacts must remain encrypted. Treat the artifact
 
 Open the repository's **Settings → Secrets and variables → Actions** and add:
 
-- `CAMPUSFACE_DB_URL`: the PostgreSQL connection string from the Supabase Dashboard's **Connect** panel. Prefer the Session Pooler connection string for a network-friendly connection. Do not put this value in a code file or send it in chat.
+- `CAMPUSFACE_DB_URL`: the PostgreSQL connection string from the Supabase Dashboard's **Connect** panel. Prefer the Session Pooler connection string for a network-friendly connection. Do not put this value in a code file or send it in chat. The latest 15 November 2026 workflow logs show that this saved secret passed validation and authenticated successfully; do not reset or replace it again unless a later log explicitly reports an authentication failure.
 - `CAMPUSFACE_BACKUP_PASSPHRASE`: a unique, randomly generated passphrase of at least 24 characters (32 or more is recommended). Generate/store it in a password manager. Do not reuse a website password.
 
 Do not add either value as a GitHub repository variable, commit it to the repository, or paste it into a workflow file.
@@ -125,3 +125,16 @@ A recovery rehearsal is only complete when all of the following pass on the isol
 - [ ] Perform a full restore rehearsal on a separate project.
 
 Until the remaining checks are completed, consider Task 16 **partially implemented, not fully recovery-tested**.
+
+
+### Troubleshooting note — 15 November 2026
+
+The latest failed backup attempts were inspected directly from their GitHub Actions logs. The current saved secrets passed validation, and the Supabase CLI successfully connected to PostgreSQL and completed the roles, schema, and data dump commands. The run then failed at the old table-name text check, before encryption and artifact upload. This was a workflow validation defect, not a password failure. One earlier attempt did show a PostgreSQL password-authentication failure, but the more recent runs authenticated successfully.
+
+The workflow has since been revised to:
+- automatically run when `.github/workflows/backup.yml` is updated on `main`, avoiding another manual Run workflow step for the first post-fix attempt;
+- explicitly dump only the `public` application schema and data;
+- use quote- and whitespace-tolerant SQL validation for the 12 application tables;
+- clean up plaintext temporary files even if a step fails.
+
+The first successful encrypted artifact is still pending verification. Do not ask the owner to replace the currently working connection secret based solely on the earlier failures.
