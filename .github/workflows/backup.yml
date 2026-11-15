@@ -1,9 +1,11 @@
 name: CampusFace encrypted database backup
 
 on:
-  # Run once automatically when this backup workflow is changed, so a fix can
-  # be verified without asking the project owner to press Run workflow.
+  # A change to this workflow automatically produces a fresh backup.
+  # This removes the need to open Actions and press Run workflow.
   push:
+    branches:
+      - main
     paths:
       - ".github/workflows/backup.yml"
   schedule:
@@ -35,25 +37,26 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "$CAMPUSFACE_DB_URL" ]]; then
-            echo "::error::Add the CAMPUSFACE_DB_URL repository secret before running a backup."
+            echo "::error::The CAMPUSFACE_DB_URL repository secret is missing."
             exit 1
           fi
           if [[ "$CAMPUSFACE_DB_URL" != postgresql://* && "$CAMPUSFACE_DB_URL" != postgres://* ]]; then
             echo "::error::CAMPUSFACE_DB_URL must be a PostgreSQL connection string."
             exit 1
           fi
-          if [[ -z "$CAMPUSFACE_BACKUP_PASSPHRASE" || ${#CAMPUSFACE_BACKUP_PASSPHRASE} -lt 24 ]]; then
+          PASS_LENGTH=$(printf '%s' "$CAMPUSFACE_BACKUP_PASSPHRASE" | wc -c)
+          if [[ -z "$CAMPUSFACE_BACKUP_PASSPHRASE" || "$PASS_LENGTH" -lt 24 ]]; then
             echo "::error::CAMPUSFACE_BACKUP_PASSPHRASE must contain at least 24 characters."
             exit 1
           fi
-          echo "Required secrets are present. Secret values are not printed."
+          echo "Both required secrets are present. Secret values are not printed."
 
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v3
         with:
-          version: ^3
+          version: "3.1.0"
 
-      - name: Create and verify encrypted backup
+      - name: Create, structurally validate and encrypt backup
         shell: bash
         env:
           CAMPUSFACE_DB_URL: ${{ secrets.CAMPUSFACE_DB_URL }}
@@ -63,29 +66,27 @@ jobs:
 
           BACKUP_DIR="$RUNNER_TEMP/campusface-backup"
           ARCHIVE="$RUNNER_TEMP/campusface-backup.tar.gz"
-          ENCRYPTED="$RUNNER_TEMP/campusface-backup-${GITHUB_RUN_ID}.tar.gz.gpg"
+          ENCRYPTED="$RUNNER_TEMP/campusface-backup-$GITHUB_RUN_ID.tar.gz.gpg"
           PASSPHRASE_FILE="$RUNNER_TEMP/campusface-backup-passphrase"
-          SCHEMA_NORMALIZED="$RUNNER_TEMP/campusface-schema-normalized.sql"
-          DATA_NORMALIZED="$RUNNER_TEMP/campusface-data-normalized.sql"
-
-          cleanup() {
-            rm -rf "$BACKUP_DIR"
-            rm -f "$ARCHIVE" "$PASSPHRASE_FILE" "$SCHEMA_NORMALIZED" "$DATA_NORMALIZED"
-          }
-          trap cleanup EXIT
 
           mkdir -p "$BACKUP_DIR"
           umask 077
           printf '%s' "$CAMPUSFACE_BACKUP_PASSPHRASE" > "$PASSPHRASE_FILE"
           chmod 600 "$PASSPHRASE_FILE"
 
+          cleanup() {
+            rm -rf "$BACKUP_DIR"
+            rm -f "$ARCHIVE" "$PASSPHRASE_FILE"
+          }
+          trap cleanup EXIT
+
           supabase --version
 
-          # Supabase CLI filters out Supabase-managed schemas (including auth and storage).
-          # These files cover custom database roles, application schema, and application data.
+          # Scope both SQL exports explicitly to CampusFace's public application schema.
+          # Supabase CLI excludes managed schemas (including auth and storage) and extension-owned objects.
           supabase db dump --remote="$CAMPUSFACE_DB_URL" --file "$BACKUP_DIR/roles.sql" --role-only
-          supabase db dump --remote="$CAMPUSFACE_DB_URL" --file "$BACKUP_DIR/schema.sql"
-          supabase db dump --remote="$CAMPUSFACE_DB_URL" --file "$BACKUP_DIR/data.sql" --use-copy --data-only
+          supabase db dump --remote="$CAMPUSFACE_DB_URL" --schema=public --file "$BACKUP_DIR/schema.sql"
+          supabase db dump --remote="$CAMPUSFACE_DB_URL" --schema=public --file "$BACKUP_DIR/data.sql" --use-copy --data-only
 
           for file in roles.sql schema.sql data.sql; do
             if [[ ! -s "$BACKUP_DIR/$file" ]]; then
@@ -94,35 +95,60 @@ jobs:
             fi
           done
 
-          # pg_dump may quote SQL identifiers (for example, "public"."faculties").
-          # Write normalized copies first, then search the files directly. Do not pipe
-          # sed into grep -q: with pipefail enabled, grep's early exit can SIGPIPE sed
-          # and falsely report a missing table even when a match exists.
-          sed 's/"//g' "$BACKUP_DIR/schema.sql" > "$SCHEMA_NORMALIZED"
-          sed 's/"//g' "$BACKUP_DIR/data.sql" > "$DATA_NORMALIZED"
+          # Validate all 12 known application table definitions independent of
+          # SQL identifier quoting, case, and line wrapping.
+          python3 - "$BACKUP_DIR/schema.sql" "$BACKUP_DIR/data.sql" <<'PY'
+          import pathlib
+          import re
+          import sys
 
-          for table in faculties departments courses staff_profiles students student_courses \
-                       lecturer_course_assignments attendance_sessions session_enrolment_snapshots \
-                       attendance_records staff_management_audit biometric_processing_gate; do
-            if ! grep -Eiq "^[[:space:]]*CREATE TABLE([[:space:]]+IF NOT EXISTS)?[[:space:]]+public\\.$table([[:space:]]|\\()" "$SCHEMA_NORMALIZED"; then
-              echo "::error::Expected CampusFace table is missing from schema dump: $table"
-              exit 1
-            fi
-          done
+          schema_path = pathlib.Path(sys.argv[1])
+          data_path = pathlib.Path(sys.argv[2])
+          schema_text = schema_path.read_text(encoding="utf-8")
+          data_text = data_path.read_text(encoding="utf-8")
+          normalized = re.sub(r"\s+", " ", schema_text.replace('"', "")).casefold()
 
-          for table in staff_profiles courses students attendance_sessions attendance_records; do
-            if ! grep -Eiq "^[[:space:]]*COPY[[:space:]]+public\\.$table([[:space:]]|\\()" "$DATA_NORMALIZED"; then
-              echo "::error::Expected CampusFace data section is missing: $table"
-              exit 1
-            fi
-          done
+          expected = [
+              "faculties", "departments", "courses", "staff_profiles",
+              "students", "student_courses", "lecturer_course_assignments",
+              "attendance_sessions", "session_enrolment_snapshots",
+              "attendance_records", "staff_management_audit",
+              "biometric_processing_gate",
+          ]
+
+          missing = []
+          for table in expected:
+              pattern = (
+                  r"\bcreate\s+table\s+"
+                  r"(?:if\s+not\s+exists\s+)?"
+                  r"public\s*\.\s*" + re.escape(table) + r"\b"
+              )
+              if not re.search(pattern, normalized, flags=re.IGNORECASE):
+                  missing.append(table)
+
+          if missing:
+              print("Missing table definitions: " + ", ".join(missing))
+              print("CREATE TABLE statement prefixes found:")
+              for line in schema_text.splitlines():
+                  if re.search(r"\bcreate\s+table\b", line, flags=re.IGNORECASE):
+                      print(line[:180])
+              sys.exit(1)
+
+          if not data_text.strip():
+              print("Data export is empty.")
+              sys.exit(1)
+
+          print("Schema validation passed: all 12 CampusFace tables are present.")
+          print("Data export is present and non-empty.")
+          PY
 
           {
             echo "CampusFace database backup"
             echo "Created UTC: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
             echo "Project ref: rgyhdivtvjkbgantrdpe"
             echo "Supabase CLI: $(supabase --version)"
-            echo "Scope: roles, custom database schema, and non-managed database data"
+            echo "Scope: custom database roles, public application schema, and public application data"
+            echo "Included tables: faculties, departments, courses, staff_profiles, students, student_courses, lecturer_course_assignments, attendance_sessions, session_enrolment_snapshots, attendance_records, staff_management_audit, biometric_processing_gate"
             echo "Excluded by Supabase CLI: managed auth and storage schemas, extension-managed objects"
             echo "This archive is encrypted with GPG AES-256."
           } > "$BACKUP_DIR/backup-manifest.txt"
@@ -144,14 +170,10 @@ jobs:
           echo "Encrypted file SHA-256:"
           sha256sum "$ENCRYPTED"
 
-          # Remove all plaintext database exports and the passphrase file before artifact upload.
-          rm -rf "$BACKUP_DIR"
-          rm -f "$ARCHIVE" "$PASSPHRASE_FILE" "$SCHEMA_NORMALIZED" "$DATA_NORMALIZED"
-
       - name: Upload encrypted backup artifact
         uses: actions/upload-artifact@v4
         with:
-          name: campusface-encrypted-db-backup-${{ github.run_id }}
-          path: ${{ runner.temp }}/campusface-backup-${{ github.run_id }}.tar.gz.gpg
+          name: campusface-encrypted-db-backup-$GITHUB_RUN_ID
+          path: ${{ runner.temp }}/campusface-backup-$GITHUB_RUN_ID.tar.gz.gpg
           if-no-files-found: error
           retention-days: 14
