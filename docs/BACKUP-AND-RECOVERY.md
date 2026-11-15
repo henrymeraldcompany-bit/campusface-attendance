@@ -1,6 +1,6 @@
 # CampusFace Backup and Recovery Runbook
 
-Last reviewed: 14 November 2026
+Last reviewed: 15 November 2026
 
 ## 1. Current production baseline
 
@@ -119,8 +119,8 @@ A recovery rehearsal is only complete when all of the following pass on the isol
 - [x] Added an encrypted scheduled/manual application-database backup workflow.
 - [x] Added this operational recovery guide.
 - [x] Add the two required GitHub Actions secrets and confirm the workflow can validate them and connect to PostgreSQL.
-- [ ] Run the first real backup and confirm the artifact is generated.
-- [ ] Download and retain a private copy of the encrypted artifact.
+- [x] Run the first real backup and confirm the artifact is generated and decrypts successfully for integrity verification (GitHub Actions run #9; run ID `43770414667`, completed 15 November 2026).
+- [ ] Download the encrypted artifact to the owner's own private storage and retain it separately from the backup passphrase. A copy has been made available in this conversation, but private off-platform retention is not yet confirmed.
 - [ ] Establish the separate Auth-user backup/restore method.
 - [ ] Perform a full restore rehearsal on a separate project.
 
@@ -137,4 +137,6 @@ The workflow has since been revised to:
 - use quote- and whitespace-tolerant SQL validation for the 12 application tables;
 - clean up plaintext temporary files even if a step fails.
 
-The first successful encrypted artifact is still pending verification. Do not ask the owner to replace the currently working connection secret based solely on the earlier failures.
+The first successful encrypted artifact was generated and verified on 15 November 2026. GitHub Actions run #9 (`43770414667`) completed successfully: secret validation, Supabase CLI installation, roles/schema/data exports, GPG AES-256 encryption, decryption and tar integrity verification, and artifact upload all passed. Artifact ID: `14184222217`; GitHub retention expiry: 29 November 2026 at 22:39 UTC. The encrypted file is 15,212 bytes; SHA-256: `0665870486872ea1f3299b7082c58a06c29aba5a8e7c566ace87c7d9d70fbeee`.
+
+The precise cause of the repeated post-export failures was the combination of `sed | grep -q` and Bash `pipefail`: after finding a match, `grep -q` exited early, causing `sed` to receive SIGPIPE and making the pipeline look like a failed match. The workflow now writes normalized temporary SQL files first and searches those files directly. Do not ask the owner to replace the currently working connection secret based solely on the earlier failures.
