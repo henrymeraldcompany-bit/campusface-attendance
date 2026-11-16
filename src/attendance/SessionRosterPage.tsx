@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
-  Camera,
   CheckCircle2,
   ClipboardCheck,
   Clock,
@@ -15,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
-import { SyntheticFaceScanDemo } from "../biometrics/SyntheticFaceScanDemo";
+import { FaceAttendanceScanner } from "../biometrics/FaceAttendanceScanner";
 import {
   calculateAttendanceSummary,
   csvCell,
@@ -46,7 +45,7 @@ type SnapshotStudent = {
 type AttendanceMark = {
   student_id: string;
   marked_at: string;
-  verification_method: "manual";
+  verification_method: "manual" | "face_confirmed";
 };
 
 type Props = {
@@ -106,7 +105,7 @@ export function SessionRosterPage({ session, onBack }: Props) {
           .order("student_full_name", { ascending: true }),
         supabase
           .from("biometric_processing_gate")
-          .select("capture_enabled")
+          .select("capture_enabled, institutional_approval_reference, dpia_reference, lawful_basis_reference, consent_process_reference, retention_policy_reference, security_review_reference, alternative_process_reference, approved_at, approved_by")
           .eq("id", 1)
           .maybeSingle(),
         supabase
@@ -136,7 +135,20 @@ export function SessionRosterPage({ session, onBack }: Props) {
       }
 
       // A missing or unreadable biometric gate must always fail closed.
-      setCaptureEnabled(Boolean(!gateResult.error && gateResult.data?.capture_enabled));
+      const gate = gateResult.data;
+      const gateComplete = Boolean(
+        gate?.capture_enabled &&
+        gate?.institutional_approval_reference?.trim() &&
+        gate?.dpia_reference?.trim() &&
+        gate?.lawful_basis_reference?.trim() &&
+        gate?.consent_process_reference?.trim() &&
+        gate?.retention_policy_reference?.trim() &&
+        gate?.security_review_reference?.trim() &&
+        gate?.alternative_process_reference?.trim() &&
+        gate?.approved_at &&
+        gate?.approved_by
+      );
+      setCaptureEnabled(Boolean(!gateResult.error && gateComplete));
       setGateChecked(!gateResult.error && Boolean(gateResult.data));
       setLoading(false);
     };
@@ -372,7 +384,7 @@ export function SessionRosterPage({ session, onBack }: Props) {
         </article>
         <article className="stat-card">
           <div className="stat-icon"><CheckCircle2 size={18} /></div>
-          <div className="stat-copy"><span>Present</span><strong>{presentCount}</strong><small>Manually verified</small></div>
+          <div className="stat-copy"><span>Present</span><strong>{presentCount}</strong><small>Verified attendance</small></div>
         </article>
         <article className="stat-card">
           <div className="stat-icon"><Clock size={18} /></div>
@@ -438,33 +450,14 @@ export function SessionRosterPage({ session, onBack }: Props) {
           <CheckCircle2 size={17} />
           <span>Snapshot preserved. Student edits or course-enrolment changes made after this session started will not change this class's eligibility list.</span>
         </div>
-
-        {!gateChecked || !captureEnabled ? (
-          <div className="face-scan-locked-notice">
-            <div className="face-scan-locked-icon"><Camera size={19} /></div>
-            <div>
-              <strong>Face scanning is not enabled</strong>
-              <p>
-                {gateChecked
-                  ? "The biometric-processing approval gate is still locked. This page will not open the camera or collect face images. Use manual identity verification instead."
-                  : "The biometric approval status could not be verified. Camera access remains disabled as a precaution."}
-              </p>
-            </div>
-            <span className="face-gate-pill blocked"><ShieldAlert size={12} /> Locked</span>
-          </div>
-        ) : (
-          <div className="face-scan-locked-notice">
-            <div className="face-scan-locked-icon"><Camera size={19} /></div>
-            <div>
-              <strong>Camera scanner integration is not installed</strong>
-              <p>The biometric gate is enabled, but camera capture and recognition still require a separately reviewed scanner implementation.</p>
-            </div>
-            <span className="face-gate-pill blocked"><Clock size={12} /> Not installed</span>
-          </div>
-        )}
       </section>
 
-      <SyntheticFaceScanDemo />
+      <FaceAttendanceScanner
+        sessionId={session.id}
+        disabled={!gateChecked || !captureEnabled || sessionEnded || loading || Boolean(loadError)}
+        onAttendanceSaved={() => setReloadKey((value) => value + 1)}
+      />
+
 
       {(actionMessage || actionError) && (
         <div className="student-form-message" role={actionError ? "alert" : "status"}>
