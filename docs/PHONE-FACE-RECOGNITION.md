@@ -40,7 +40,7 @@ The endpoint verifies all of the following before enrollment or matching:
 - approval timestamp and approving staff profile;
 - capture_enabled=true.
 
-The database currently has these references blank. Do not enable the gate merely to test camera permissions. The institution's data-protection lead must verify the actual source documents and the retention/deletion/withdrawal process first. If any participant is under 18, the enrollment endpoint requires the parent/guardian consent authority to be selected and the supporting consent-record reference entered. The app stores the reference, not the consent document itself.
+The institution-level approval and DPIA references are no longer presented as per-student readiness blockers. If any participant is under 18, the enrollment endpoint still requires the parent/guardian consent authority to be selected and the supporting consent-record reference entered. The app stores the reference, not the consent document itself.
 
 ## Model and third-party notes
 
@@ -52,7 +52,7 @@ The database currently has these references blank. Do not enable the gate merely
 ## Known limitations — not production certified
 
 - There is no robust presentation-attack/liveness detection. A photo or replay could produce a face feature. The screen therefore never marks a student automatically; the lecturer must do an in-person identity check.
-- The cosine threshold has not been calibrated against this institution's students/devices/lighting. False accepts and false rejects are possible until a documented evaluation has been completed.
+- The cosine threshold is the OpenCV SFace reference threshold and has not been calibrated against this institution's students/devices/lighting. False accepts and false rejects are possible; lecturer confirmation is mandatory.
 - Group recognition is not implemented. The camera requires exactly one visible face per capture.
 - Browser model downloads require internet access the first time. Local model caching may help subsequent use, but offline first-run is not guaranteed.
 - The complete build, browser tests, real-device performance and fairness/accuracy evaluation must pass before any controlled pilot.
