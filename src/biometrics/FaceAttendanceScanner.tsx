@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CheckCircle2, ScanFace, ShieldAlert, UserRound } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import { invokeFaceBiometric } from "./face-biometric-client";
 import { FaceCameraCapture } from "./FaceCameraCapture";
 
 type Props = {
@@ -27,10 +27,11 @@ export function FaceAttendanceScanner({ sessionId, disabled = false, onAttendanc
     setTicketId("");
     setMessage("");
     setError("");
-    const { data, error: invokeError } = await supabase.functions.invoke("face-biometric", {
-      body: { action: "match", session_id: sessionId, embedding },
+    const data = await invokeFaceBiometric({
+      action: "match",
+      session_id: sessionId,
+      embedding,
     });
-    if (invokeError) throw new Error(invokeError.message || "The recognition service could not be reached.");
     if (data?.error) throw new Error(data.error);
     if (data?.outcome === "manual_review") {
       setMessage(data.message || "No clear candidate was found. Use manual verification.");
@@ -49,10 +50,10 @@ export function FaceAttendanceScanner({ sessionId, disabled = false, onAttendanc
     setBusy(true);
     setError("");
     try {
-      const { data, error: invokeError } = await supabase.functions.invoke("face-biometric", {
-        body: { action: "confirm", ticket_id: ticketId },
+      const data = await invokeFaceBiometric({
+        action: "confirm",
+        ticket_id: ticketId,
       });
-      if (invokeError) throw new Error(invokeError.message || "Attendance could not be confirmed.");
       if (data?.error) throw new Error(data.error);
       setCandidate(null);
       setTicketId("");
