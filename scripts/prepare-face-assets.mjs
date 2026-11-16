@@ -100,9 +100,7 @@ async function downloadAsset(asset) {
 
 function copyRuntimeFiles(packageName, entry, target, matcher, required) {
   const packageEntry = require.resolve(entry || packageName);
-  const packageDirectory = entry
-    ? resolve(dirname(packageEntry), "..")
-    : dirname(packageEntry);
+  const packageDirectory = dirname(packageEntry);
   const sourceDirectory = packageName === "@mediapipe/tasks-vision"
     ? join(packageDirectory, "wasm")
     : packageDirectory;
