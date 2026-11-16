@@ -261,15 +261,13 @@ Deno.serve(async (request: Request) => {
       });
 
     if (templateError) {
-      await admin.from("biometric_student_consents")
-        .update({ consent_status: "withdrawn", withdrawn_at: new Date().toISOString() })
-        .eq("student_id", studentId);
-      return response({ error: "The encrypted template could not be saved. The consent state was rolled back." }, 500);
+      return response({ error: "The consent reference was saved, but the encrypted template could not be saved. No face match is available until enrollment succeeds." }, 500);
     }
 
-    await admin.from("face_processing_audit").insert({
-      actor_id: actorId, student_id: studentId, event_type: "template_enrolled",
-    });
+    await admin.from("face_processing_audit").insert([
+      { actor_id: actorId, student_id: studentId, event_type: "consent_recorded" },
+      { actor_id: actorId, student_id: studentId, event_type: "template_enrolled" },
+    ]);
 
     return response({ success: true, message: "An encrypted face template was enrolled. The camera image was not uploaded or retained." }, 201);
   }
