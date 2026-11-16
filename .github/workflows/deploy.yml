@@ -43,6 +43,15 @@ jobs:
       - name: Build CampusFace PWA
         run: npm run build
 
+      - name: Verify bundled face model assets
+        run: |
+          test -s dist/face-models/mediapipe/vision_wasm_internal.js
+          test -s dist/face-models/mediapipe/vision_wasm_internal.wasm
+          test -s dist/face-models/onnxruntime/ort-wasm-simd-threaded.mjs
+          test -s dist/face-models/onnxruntime/ort-wasm-simd-threaded.wasm
+          test -s dist/face-models/models/face_landmarker.task
+          test -s dist/face-models/models/face_recognition_sface_2021dec.onnx
+          echo "All verified local face model assets are included in dist."
       - name: Verify PWA manifest and service worker
         run: |
           test -s dist/manifest.webmanifest
