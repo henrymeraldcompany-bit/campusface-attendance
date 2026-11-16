@@ -181,7 +181,7 @@ Deno.serve(async (request: Request) => {
 
   const gate = await loadGate(admin);
   if (!gate || !gateIsReady(gate)) {
-    return response({ error: "Face processing is locked. The server has not verified all institutional safeguards." }, 423);
+    return response({ error: "Face processing is not active. An authorised administrator must activate it first." }, 423);
   }
 
   if (action === "enroll") {
