@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, CameraOff, LoaderCircle, RefreshCw, ScanFace, ShieldCheck } from "lucide-react";
-import { extractFaceEmbedding, prepareFaceEngine } from "./face-engine";
+import {
+  extractFaceEmbedding,
+  prepareFaceEngine,
+  type FaceEngineProgress,
+} from "./face-engine";
 import "./face-camera.css";
 
 type Props = {
@@ -20,11 +24,13 @@ export function FaceCameraCapture({
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const preparePromiseRef = useRef<Promise<void> | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [starting, setStarting] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [modelLoading, setModelLoading] = useState(false);
   const [modelReady, setModelReady] = useState(false);
+  const [modelProgress, setModelProgress] = useState<FaceEngineProgress | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment");
@@ -41,21 +47,35 @@ export function FaceCameraCapture({
     streamRef.current = null;
   }, []);
 
-  const prepareModels = async () => {
-    if (modelLoading || modelReady) return;
+  const prepareModels = (): Promise<void> => {
+    if (modelReady) return Promise.resolve();
+    if (preparePromiseRef.current) return preparePromiseRef.current;
+
     setModelLoading(true);
     setError("");
-    try {
-      await prepareFaceEngine();
-      setModelReady(true);
-    } catch (reason) {
-      setModelReady(false);
-      setError(reason instanceof Error
-        ? reason.message
-        : "CampusFace could not prepare the face models. Check your internet connection and retry.");
-    } finally {
-      setModelLoading(false);
-    }
+    setModelProgress({
+      stage: "Preparing local face models",
+      detail: "Checking the bundled model files.",
+    });
+
+    const preparation = (async () => {
+      try {
+        await prepareFaceEngine((progress) => setModelProgress(progress));
+        setModelReady(true);
+        setNotice("Face models are ready. You can now capture.");
+      } catch (reason) {
+        setModelReady(false);
+        setError(reason instanceof Error
+          ? reason.message
+          : "CampusFace could not prepare the face models. Check your connection and try again.");
+      } finally {
+        setModelLoading(false);
+        preparePromiseRef.current = null;
+      }
+    })();
+
+    preparePromiseRef.current = preparation;
+    return preparation;
   };
 
   const startCamera = async () => {
@@ -85,9 +105,9 @@ export function FaceCameraCapture({
       await videoRef.current.play();
       setCameraActive(true);
 
-      // Load the larger model files while the user positions their face,
-      // not after they press Capture and Register.
-      if (!modelReady) void prepareModels();
+      // Models are served by this app, so the first setup is reliable and
+      // later visits can reuse the browser/service-worker cache.
+      void prepareModels();
     } catch (reason) {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
@@ -117,6 +137,8 @@ export function FaceCameraCapture({
     }
   };
 
+  const progressValue = modelProgress?.percent;
+
   return (
     <section className="panel face-camera-panel">
       <div className="panel-heading">
@@ -139,6 +161,29 @@ export function FaceCameraCapture({
         )}
         {cameraActive && <span className="face-camera-guidance">Keep one face inside the oval</span>}
       </div>
+
+      {modelLoading && (
+        <div className="face-model-progress" role="status" aria-live="polite">
+          <div className="face-model-progress-heading">
+            <LoaderCircle size={17} className="spin" />
+            <strong>{modelProgress?.stage || "Preparing face models..."}</strong>
+          </div>
+          <p>{modelProgress?.detail || "Keep CampusFace open while setup finishes."}</p>
+          {progressValue !== undefined && (
+            <div
+              className="face-model-progress-track"
+              role="progressbar"
+              aria-label="Face model download progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progressValue}
+            >
+              <span style={{ width: `${progressValue}%` }} />
+            </div>
+          )}
+          <small>First setup may take a few minutes on a slow connection. Later visits reuse cached files.</small>
+        </div>
+      )}
 
       <div className="face-camera-actions">
         {!cameraActive ? (
@@ -174,7 +219,7 @@ export function FaceCameraCapture({
                   ? "Preparing face models..."
                   : modelReady
                     ? actionLabel
-                    : "Retry face setup"}
+                    : "Retry model setup"}
             </button>
             <button className="secondary-button" type="button" onClick={stopCamera} disabled={capturing}>
               <CameraOff size={16} />
@@ -185,7 +230,7 @@ export function FaceCameraCapture({
         <span className="face-camera-local-note"><ShieldCheck size={14} /> Video stays on this phone</span>
       </div>
 
-      <p className="face-camera-local-note">Face-detection and recognition models are prepared on this phone before capture. Camera frames are not uploaded. Only the numeric face feature is sent to CampusFace for encrypted processing.</p>
+      <p className="face-camera-local-note">Face-detection and recognition files are hosted with CampusFace and prepared on this phone. Camera frames are not uploaded. Only the numeric face feature is sent for encrypted processing.</p>
       {error && <div className="student-form-message" role="alert">{error}</div>}
       {notice && <div className="face-camera-success" role="status">{notice}</div>}
     </section>

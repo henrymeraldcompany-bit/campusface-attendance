@@ -32,7 +32,23 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: "index.html",
-        globPatterns: ["**/*.{js,css,html,svg,png,woff2}"]
+        globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.includes("/face-models/"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "campusface-face-model-assets-v1",
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 * 24 * 180
+              },
+              cacheableResponse: {
+                statuses: [200]
+              }
+            }
+          }
+        ]
       }
     })
   ]

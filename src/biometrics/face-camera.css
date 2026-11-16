@@ -207,3 +207,49 @@
     justify-content: center;
   }
 }
+
+
+.face-model-progress {
+  display: grid;
+  gap: 8px;
+  padding: 14px 15px;
+  border: 1px solid var(--border, #dce4e8);
+  border-radius: 13px;
+  background: var(--panel-soft, rgba(120,140,150,.06));
+}
+
+.face-model-progress-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text, #24313a);
+  font-size: 13px;
+}
+
+.face-model-progress-heading .spin {
+  flex: 0 0 auto;
+  animation: face-camera-spin 1s linear infinite;
+}
+
+.face-model-progress p,
+.face-model-progress small {
+  margin: 0;
+  color: var(--muted, #71808a);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.face-model-progress-track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border, #dce4e8);
+}
+
+.face-model-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent, #167b7b);
+  transition: width 180ms ease;
+}

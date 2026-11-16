@@ -4,123 +4,316 @@ import * as ort from "onnxruntime-web";
 export const FACE_EMBEDDING_MODEL = "opencv-sface-2021dec";
 export const FACE_EMBEDDING_SIZE = 128;
 
-const MEDIAPIPE_WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3/wasm";
-const LANDMARK_MODEL =
-  "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
-const SFACE_MODEL =
-  "https://huggingface.co/opencv/face_recognition_sface/resolve/main/face_recognition_sface_2021dec.onnx";
-const SFACE_SHA256 =
-  "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79";
+export type FaceEngineProgress = {
+  stage: string;
+  detail: string;
+  percent?: number;
+};
 
 type FaceEngine = {
   landmarker: FaceLandmarker;
   recognizer: ort.InferenceSession;
 };
 
+type ProgressCallback = (progress: FaceEngineProgress) => void;
+
+const faceAssetUrl = (assetPath: string): string =>
+  new URL(
+    `${import.meta.env.BASE_URL}face-models/${assetPath}`,
+    window.location.origin,
+  ).toString();
+
+const LANDMARK_MODEL_SHA256 =
+  "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff";
+const SFACE_SHA256 =
+  "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79";
+const MODEL_DOWNLOAD_TIMEOUT_MS = 10 * 60 * 1000;
+const DOWNLOAD_ATTEMPTS = 3;
+
 let enginePromise: Promise<FaceEngine> | null = null;
 
-function toHex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer), (byte) => byte.toString(16).padStart(2, "0")).join("");
+function report(
+  onProgress: ProgressCallback | undefined,
+  stage: string,
+  detail: string,
+  percent?: number,
+) {
+  onProgress?.({ stage, detail, percent });
 }
 
-async function loadRecognizer(): Promise<ort.InferenceSession> {
-  ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/";
+function formatMegabytes(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function toHex(buffer: ArrayBuffer): string {
+  return Array.from(
+    new Uint8Array(buffer),
+    (byte) => byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
+async function fetchVerifiedModel(
+  url: string,
+  modelName: string,
+  expectedSha256: string,
+  onProgress?: ProgressCallback,
+): Promise<Uint8Array> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= DOWNLOAD_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(
+      () => controller.abort(),
+      MODEL_DOWNLOAD_TIMEOUT_MS,
+    );
+
+    try {
+      report(
+        onProgress,
+        `Downloading ${modelName}`,
+        attempt === 1
+          ? "Loading the verified model from CampusFace's own server."
+          : `Retrying download (attempt ${attempt} of ${DOWNLOAD_ATTEMPTS}).`,
+      );
+
+      const response = await fetch(url, {
+        cache: "force-cache",
+        credentials: "same-origin",
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error(
+          `CampusFace model file returned HTTP ${response.status}. Reload the app and retry; contact the administrator if it continues.`,
+        );
+      }
+      if (!response.body) {
+        throw new Error("The model download returned an empty response.");
+      }
+
+      const totalBytes = Number(response.headers.get("content-length")) || undefined;
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let loadedBytes = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          chunks.push(value);
+          loadedBytes += value.byteLength;
+          const percent = totalBytes
+            ? Math.min(100, Math.round((loadedBytes / totalBytes) * 100))
+            : undefined;
+          report(
+            onProgress,
+            `Downloading ${modelName}`,
+            totalBytes
+              ? `${formatMegabytes(loadedBytes)} of ${formatMegabytes(totalBytes)} downloaded.`
+              : `${formatMegabytes(loadedBytes)} downloaded.`,
+            percent,
+          );
+        }
+      }
+
+      const bytes = new Uint8Array(loadedBytes);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+
+      const digest = await crypto.subtle.digest("SHA-256", bytes.buffer);
+      if (toHex(digest) !== expectedSha256) {
+        throw new Error(
+          `The downloaded ${modelName.toLowerCase()} failed its security check. Reload the app and retry.`,
+        );
+      }
+
+      report(
+        onProgress,
+        `Preparing ${modelName}`,
+        "The model download is complete and its checksum is verified.",
+        100,
+      );
+      return bytes;
+    } catch (reason) {
+      lastError = reason;
+      if (reason instanceof DOMException && reason.name === "AbortError") {
+        lastError = new Error(
+          `The ${modelName.toLowerCase()} download timed out after 10 minutes. Keep CampusFace open on a stable connection and retry.`,
+        );
+      }
+      if (attempt < DOWNLOAD_ATTEMPTS) {
+        report(
+          onProgress,
+          `Retrying ${modelName}`,
+          "A temporary connection problem interrupted the download. CampusFace will retry automatically.",
+        );
+        await new Promise((resolveDelay) => window.setTimeout(resolveDelay, attempt * 1200));
+      }
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  }
+
+  if (lastError instanceof Error) {
+    if (lastError.message.startsWith("CampusFace model file returned HTTP")) throw lastError;
+    if (lastError.message.includes("failed its security check")) throw lastError;
+    if (lastError.message.includes("timed out")) throw lastError;
+    if (lastError instanceof TypeError) {
+      throw new Error(
+        `CampusFace could not reach its local ${modelName.toLowerCase()} file. Check your internet connection, then retry. The model is hosted with the app, not on Hugging Face or a third-party CDN.`,
+      );
+    }
+    throw lastError;
+  }
+
+  throw new Error(
+    `CampusFace could not download the ${modelName.toLowerCase()}. Check your connection and retry.`,
+  );
+}
+
+async function createLandmarker(
+  onProgress?: ProgressCallback,
+): Promise<FaceLandmarker> {
+  report(
+    onProgress,
+    "Loading local face-detection runtime",
+    "Preparing the face detector files bundled with CampusFace.",
+  );
+
+  let fileset: Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>;
+  try {
+    fileset = await FilesetResolver.forVisionTasks(faceAssetUrl("mediapipe/"));
+  } catch (reason) {
+    const detail = reason instanceof Error ? reason.message : String(reason);
+    throw new Error(
+      `CampusFace could not start its bundled face-detection runtime. ${detail}. Reload the app and retry.`,
+    );
+  }
+
+  const modelBytes = await fetchVerifiedModel(
+    faceAssetUrl("models/face_landmarker.task"),
+    "face-detection model",
+    LANDMARK_MODEL_SHA256,
+    onProgress,
+  );
+
+  const commonOptions = {
+    runningMode: "VIDEO" as const,
+    numFaces: 1,
+    minFaceDetectionConfidence: 0.65,
+    minFacePresenceConfidence: 0.65,
+    minTrackingConfidence: 0.65,
+    outputFaceBlendshapes: false,
+    outputFacialTransformationMatrixes: false,
+  };
+
+  report(
+    onProgress,
+    "Starting face detector",
+    "Initialising the on-device face detector. Keep the app open.",
+  );
+
+  try {
+    return await FaceLandmarker.createFromOptions(fileset, {
+      ...commonOptions,
+      baseOptions: {
+        modelAssetBuffer: new Uint8Array(modelBytes.slice()),
+        delegate: "GPU",
+      },
+    });
+  } catch (gpuError) {
+    report(
+      onProgress,
+      "Switching to compatible face detector",
+      "This phone is using the CPU fallback for face detection.",
+    );
+    try {
+      return await FaceLandmarker.createFromOptions(fileset, {
+        ...commonOptions,
+        baseOptions: {
+          modelAssetBuffer: new Uint8Array(modelBytes.slice()),
+          delegate: "CPU",
+        },
+      });
+    } catch (cpuError) {
+      const gpuMessage = gpuError instanceof Error ? gpuError.message : String(gpuError);
+      const cpuMessage = cpuError instanceof Error ? cpuError.message : String(cpuError);
+      throw new Error(
+        `The face-detection model downloaded correctly, but the detector could not start. GPU: ${gpuMessage}. CPU: ${cpuMessage}. Close other apps, reload CampusFace and retry.`,
+      );
+    }
+  }
+}
+
+async function loadRecognizer(
+  onProgress?: ProgressCallback,
+): Promise<ort.InferenceSession> {
+  ort.env.wasm.wasmPaths = {
+    wasm: faceAssetUrl("onnxruntime/ort-wasm-simd-threaded.wasm"),
+    mjs: faceAssetUrl("onnxruntime/ort-wasm-simd-threaded.mjs"),
+  };
   ort.env.wasm.numThreads = 1;
   ort.env.wasm.proxy = false;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60_000);
-  let modelBytes: ArrayBuffer;
-  try {
-    const response = await fetch(SFACE_MODEL, {
-      cache: "force-cache",
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      throw new Error(`The face-recognition model server returned HTTP ${response.status}. Please retry when your connection is stable.`);
-    }
-    // Keep the timeout active until the complete model file has downloaded.
-    modelBytes = await response.arrayBuffer();
-  } catch (reason) {
-    if (reason instanceof Error && reason.message.startsWith("The face-recognition model server returned HTTP")) {
-      throw reason;
-    }
-    if (reason instanceof DOMException && reason.name === "AbortError") {
-      throw new Error("The face-recognition model download timed out after 60 seconds. Check your connection and tap Retry face setup.");
-    }
-    throw new Error("CampusFace could not download the face-recognition model. Check that your phone has a stable internet connection, then tap Retry face setup.");
-  } finally {
-    clearTimeout(timeoutId);
-  }
-  const digest = await crypto.subtle.digest("SHA-256", modelBytes);
-  if (toHex(digest) !== SFACE_SHA256) {
-    throw new Error("The downloaded recognition model failed its integrity check.");
-  }
+  const modelBytes = await fetchVerifiedModel(
+    faceAssetUrl("models/face_recognition_sface_2021dec.onnx"),
+    "face-recognition model",
+    SFACE_SHA256,
+    onProgress,
+  );
 
-  return ort.InferenceSession.create(modelBytes, {
-    executionProviders: ["wasm"],
-    graphOptimizationLevel: "all",
-    executionMode: "sequential",
-    intraOpNumThreads: 1,
-  });
+  report(
+    onProgress,
+    "Starting face-recognition runtime",
+    "Initialising the on-device recognition engine. This may take a little longer on a phone.",
+    100,
+  );
+
+  try {
+    return await ort.InferenceSession.create(modelBytes, {
+      executionProviders: ["wasm"],
+      graphOptimizationLevel: "all",
+      executionMode: "sequential",
+      intraOpNumThreads: 1,
+    });
+  } catch (reason) {
+    const detail = reason instanceof Error ? reason.message : String(reason);
+    throw new Error(
+      `The face-recognition model downloaded and passed verification, but its local runtime could not start. ${detail}. Close other apps and retry.`,
+    );
+  }
 }
 
-async function createLandmarker(): Promise<FaceLandmarker> {
-  let fileset: Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>;
+async function loadEngine(onProgress?: ProgressCallback): Promise<FaceEngine> {
+  const landmarker = await createLandmarker(onProgress);
   try {
-    fileset = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM);
-  } catch {
-    throw new Error("CampusFace could not load its face-detection files. Check your internet connection and tap Retry face setup.");
-  }
-  try {
-    return await FaceLandmarker.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath: LANDMARK_MODEL, delegate: "GPU" },
-      runningMode: "VIDEO",
-      numFaces: 2,
-      minFaceDetectionConfidence: 0.65,
-      minFacePresenceConfidence: 0.65,
-      minTrackingConfidence: 0.65,
-      outputFaceBlendshapes: false,
-      outputFacialTransformationMatrixes: false,
-    });
-  } catch {
-    try {
-      return await FaceLandmarker.createFromOptions(fileset, {
-        baseOptions: { modelAssetPath: LANDMARK_MODEL, delegate: "CPU" },
-        runningMode: "VIDEO",
-        numFaces: 2,
-        minFaceDetectionConfidence: 0.65,
-        minFacePresenceConfidence: 0.65,
-        minTrackingConfidence: 0.65,
-        outputFaceBlendshapes: false,
-        outputFacialTransformationMatrixes: false,
-      });
-    } catch {
-      throw new Error("CampusFace could not initialise face detection. Reload the page, check your internet connection, and tap Retry face setup.");
-    }
+    const recognizer = await loadRecognizer(onProgress);
+    report(onProgress, "Face models ready", "Both on-device models are ready for capture.", 100);
+    return { landmarker, recognizer };
+  } catch (reason) {
+    landmarker.close();
+    throw reason;
   }
 }
 
 /**
- * Preloads and verifies the on-device face models before the user captures.
- * This avoids hiding large first-run model downloads behind the Capture button.
+ * Prepares the on-device face models before capture. Files are served from the
+ * same CampusFace origin and verified before the runtime can use them.
  */
-export async function prepareFaceEngine(): Promise<void> {
-  await getEngine();
+export async function prepareFaceEngine(
+  onProgress?: ProgressCallback,
+): Promise<void> {
+  await getEngine(onProgress);
 }
 
-async function getEngine(): Promise<FaceEngine> {
+async function getEngine(onProgress?: ProgressCallback): Promise<FaceEngine> {
   if (!enginePromise) {
-    enginePromise = Promise.all([createLandmarker(), loadRecognizer()])
-      .then(([landmarker, recognizer]) => ({ landmarker, recognizer }))
-      .catch((error) => {
-        enginePromise = null;
-        const message = error instanceof Error ? error.message : String(error);
-        if (/failed to fetch|networkerror|network request failed/i.test(message)) {
-          throw new Error("CampusFace could not download one of its on-device recognition files. Check your internet connection and tap Retry face setup.");
-        }
-        throw error;
-      });
+    enginePromise = loadEngine(onProgress).catch((error) => {
+      enginePromise = null;
+      throw error;
+    });
   }
   return enginePromise;
 }
