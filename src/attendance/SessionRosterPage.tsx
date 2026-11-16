@@ -97,17 +97,12 @@ export function SessionRosterPage({ session, onBack }: Props) {
       setLoading(true);
       setLoadError("");
 
-      const [rosterResult, gateResult, attendanceResult, serviceStatus] = await Promise.all([
+      const [rosterResult, attendanceResult, serviceStatus] = await Promise.all([
         supabase
           .from("session_enrolment_snapshots")
           .select("student_id, student_full_name, registration_number, gender, faculty, department, snapshotted_at")
           .eq("session_id", session.id)
           .order("student_full_name", { ascending: true }),
-        supabase
-          .from("biometric_processing_gate")
-          .select("capture_enabled, institutional_approval_reference, dpia_reference, lawful_basis_reference, consent_process_reference, retention_policy_reference, security_review_reference, alternative_process_reference, approved_at, approved_by")
-          .eq("id", 1)
-          .maybeSingle(),
         supabase
           .from("attendance_records")
           .select("student_id, marked_at, verification_method")
@@ -135,23 +130,10 @@ export function SessionRosterPage({ session, onBack }: Props) {
         setAttendanceByStudent(mapped);
       }
 
-      // A missing or unreadable biometric gate must always fail closed.
-      const gate = gateResult.data;
-      const gateComplete = Boolean(
-        gate?.capture_enabled &&
-        gate?.institutional_approval_reference?.trim() &&
-        gate?.dpia_reference?.trim() &&
-        gate?.lawful_basis_reference?.trim() &&
-        gate?.consent_process_reference?.trim() &&
-        gate?.retention_policy_reference?.trim() &&
-        gate?.security_review_reference?.trim() &&
-        gate?.alternative_process_reference?.trim() &&
-        gate?.approved_at &&
-        gate?.approved_by
-      );
+      // The server's status response verifies activation and Vault encryption.
       const serviceReady = Boolean(!serviceStatus.error && serviceStatus.data?.ready);
-      setCaptureEnabled(Boolean(!gateResult.error && gateComplete && serviceReady));
-      setGateChecked(!gateResult.error && Boolean(gateResult.data) && !serviceStatus.error);
+      setCaptureEnabled(serviceReady);
+      setGateChecked(!serviceStatus.error && Boolean(serviceStatus.data));
       setLoading(false);
     };
 
