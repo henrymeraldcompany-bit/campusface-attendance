@@ -48,25 +48,37 @@ export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
   const [studentIsMinor, setStudentIsMinor] = useState(true);
   const [consentReference, setConsentReference] = useState("");
   const [consentVersion, setConsentVersion] = useState("");
+  const [serverReady, setServerReady] = useState(false);
+  const [serverStatusLoaded, setServerStatusLoaded] = useState(false);
   const [enrolmentMessage, setEnrolmentMessage] = useState("");
   const [enrolmentError, setEnrolmentError] = useState("");
 
   useEffect(() => {
     let active = true;
     const loadGate = async () => {
-      const { data, error } = await supabase
-        .from("biometric_processing_gate")
-        .select("capture_enabled, institutional_approval_reference, dpia_reference, lawful_basis_reference, consent_process_reference, retention_policy_reference, security_review_reference, alternative_process_reference, approved_at, approved_by")
-        .eq("id", 1)
-        .maybeSingle();
+      const [gateResult, serviceResult] = await Promise.all([
+        supabase
+          .from("biometric_processing_gate")
+          .select("capture_enabled, institutional_approval_reference, dpia_reference, lawful_basis_reference, consent_process_reference, retention_policy_reference, security_review_reference, alternative_process_reference, approved_at, approved_by")
+          .eq("id", 1)
+          .maybeSingle(),
+        supabase.functions.invoke("face-biometric", { body: { action: "status" } }),
+      ]);
 
       if (!active) return;
-      if (error || !data) {
+      if (gateResult.error || !gateResult.data) {
         setLoadError("The biometric readiness setting could not be verified. Face registration remains locked.");
         setGate(null);
       } else {
-        setGate(data as BiometricGate);
+        setGate(gateResult.data as BiometricGate);
       }
+      if (serviceResult.error || serviceResult.data?.error) {
+        setLoadError("The secure face service could not verify its server settings. Camera access remains locked.");
+        setServerReady(false);
+      } else {
+        setServerReady(Boolean(serviceResult.data?.ready));
+      }
+      setServerStatusLoaded(!serviceResult.error && Boolean(serviceResult.data));
       setLoading(false);
     };
 
@@ -87,7 +99,7 @@ export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
     gate?.approved_at &&
     gate?.approved_by
   );
-  const ready = Boolean(gate?.capture_enabled && requirementsComplete);
+  const ready = Boolean(gate?.capture_enabled && requirementsComplete && serverStatusLoaded && serverReady);
 
   const enrolStudent = async (embedding: number[]) => {
     setEnrolmentError("");
@@ -161,7 +173,7 @@ export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
               ? "Checking the institution's approved processing settings."
               : ready
                 ? "The server has verified the documented governance gate. Obtain and record the applicable consent before opening the camera."
-                : "CampusFace will not request camera access, capture a face image, create a biometric template or upload face data while any required safeguard is missing."}
+                : "CampusFace will not request camera access, capture a face image, create a biometric template or upload face data while any required safeguard or server secret is missing."}
           </p>
         </div>
         <span className={ready ? "face-gate-pill ready" : "face-gate-pill blocked"}>
