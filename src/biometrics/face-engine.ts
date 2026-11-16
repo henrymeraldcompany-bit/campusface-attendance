@@ -17,18 +17,11 @@ type FaceEngine = {
 
 type ProgressCallback = (progress: FaceEngineProgress) => void;
 
-const FACE_ASSET_BASE = new URL(
-  `${import.meta.env.BASE_URL}face-models/`,
-  window.location.origin,
-).toString();
-
-const MEDIAPIPE_WASM = new URL("mediapipe/", FACE_ASSET_BASE).toString();
-const LANDMARK_MODEL = new URL("models/face_landmarker.task", FACE_ASSET_BASE).toString();
-const SFACE_MODEL = new URL(
-  "models/face_recognition_sface_2021dec.onnx",
-  FACE_ASSET_BASE,
-).toString();
-const ONNX_RUNTIME_BASE = new URL("onnxruntime/", FACE_ASSET_BASE).toString();
+const faceAssetUrl = (assetPath: string): string =>
+  new URL(
+    `${import.meta.env.BASE_URL}face-models/${assetPath}`,
+    window.location.origin,
+  ).toString();
 
 const LANDMARK_MODEL_SHA256 =
   "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff";
@@ -191,7 +184,7 @@ async function createLandmarker(
 
   let fileset: Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>;
   try {
-    fileset = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM);
+    fileset = await FilesetResolver.forVisionTasks(faceAssetUrl("mediapipe/"));
   } catch (reason) {
     const detail = reason instanceof Error ? reason.message : String(reason);
     throw new Error(
@@ -200,7 +193,7 @@ async function createLandmarker(
   }
 
   const modelBytes = await fetchVerifiedModel(
-    LANDMARK_MODEL,
+    faceAssetUrl("models/face_landmarker.task"),
     "face-detection model",
     LANDMARK_MODEL_SHA256,
     onProgress,
@@ -258,14 +251,14 @@ async function loadRecognizer(
   onProgress?: ProgressCallback,
 ): Promise<ort.InferenceSession> {
   ort.env.wasm.wasmPaths = {
-    wasm: new URL("ort-wasm-simd-threaded.wasm", ONNX_RUNTIME_BASE).toString(),
-    mjs: new URL("ort-wasm-simd-threaded.mjs", ONNX_RUNTIME_BASE).toString(),
+    wasm: faceAssetUrl("onnxruntime/ort-wasm-simd-threaded.wasm"),
+    mjs: faceAssetUrl("onnxruntime/ort-wasm-simd-threaded.mjs"),
   };
   ort.env.wasm.numThreads = 1;
   ort.env.wasm.proxy = false;
 
   const modelBytes = await fetchVerifiedModel(
-    SFACE_MODEL,
+    faceAssetUrl("models/face_recognition_sface_2021dec.onnx"),
     "face-recognition model",
     SFACE_SHA256,
     onProgress,
