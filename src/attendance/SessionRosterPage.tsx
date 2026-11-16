@@ -97,7 +97,7 @@ export function SessionRosterPage({ session, onBack }: Props) {
       setLoading(true);
       setLoadError("");
 
-      const [rosterResult, gateResult, attendanceResult] = await Promise.all([
+      const [rosterResult, gateResult, attendanceResult, serviceStatus] = await Promise.all([
         supabase
           .from("session_enrolment_snapshots")
           .select("student_id, student_full_name, registration_number, gender, faculty, department, snapshotted_at")
@@ -112,6 +112,7 @@ export function SessionRosterPage({ session, onBack }: Props) {
           .from("attendance_records")
           .select("student_id, marked_at, verification_method")
           .eq("session_id", session.id),
+        supabase.functions.invoke("face-biometric", { body: { action: "status" } }),
       ]);
 
       if (!active) return;
@@ -148,8 +149,9 @@ export function SessionRosterPage({ session, onBack }: Props) {
         gate?.approved_at &&
         gate?.approved_by
       );
-      setCaptureEnabled(Boolean(!gateResult.error && gateComplete));
-      setGateChecked(!gateResult.error && Boolean(gateResult.data));
+      const serviceReady = Boolean(!serviceStatus.error && serviceStatus.data?.ready);
+      setCaptureEnabled(Boolean(!gateResult.error && gateComplete && serviceReady));
+      setGateChecked(!gateResult.error && Boolean(gateResult.data) && !serviceStatus.error);
       setLoading(false);
     };
 
