@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Camera, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowLeft, Camera, RefreshCw, ShieldCheck, UserRound } from "lucide-react";
 import { invokeFaceBiometric } from "../biometrics/face-biometric-client";
 import { FaceCameraCapture } from "../biometrics/FaceCameraCapture";
 import type { ManagedStudentRecord } from "./EditStudentDialog";
@@ -18,6 +18,7 @@ export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
   const [serverReady, setServerReady] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState("");
+  const [statusRetryKey, setStatusRetryKey] = useState(0);
   const [enrolmentMessage, setEnrolmentMessage] = useState("");
   const [enrolmentError, setEnrolmentError] = useState("");
   const consentReady = ageGroup !== "" &&
@@ -53,7 +54,7 @@ export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [statusRetryKey]);
 
   const handleCapture = async (embedding: number[]) => {
     setEnrolmentError("");
@@ -127,6 +128,15 @@ export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
           <div>
             <strong>Face scanning is temporarily unavailable</strong>
             <p>{statusMessage}</p>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => setStatusRetryKey((value) => value + 1)}
+              disabled={statusLoading}
+            >
+              <RefreshCw size={16} />
+              Retry service check
+            </button>
           </div>
         </section>
       ) : (
