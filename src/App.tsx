@@ -414,7 +414,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
                   {isAdministrator
                     ? "You can manage student records and attendance across the course catalogue."
                     : "Only courses assigned to your lecturer account are available for attendance."}{" "}
-                  The phone face-scanning workflow is implemented but remains locked until the institution's safeguards are documented and enabled.
+                  Face scanning is available for student enrollment and for identity confirmation in active class sessions.
                 </span>
               </div>
 
@@ -1045,7 +1045,7 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
                         <td><span className="student-academic-cell">{student.faculty}<small>{student.department}</small></span></td>
                         <td>{courseNames.length ? courseNames.join(", ") : "No course listed"}</td>
                         <td>
-                          <button className="student-face-review-button" type="button" onClick={() => onOpenFaceReadiness(student)} disabled={!student.is_active}>
+                          <button className="student-face-scan-button" type="button" onClick={() => onOpenFaceReadiness(student)} disabled={!student.is_active}>
                             <Camera size={12} /> Face scan
                           </button>
                         </td>
