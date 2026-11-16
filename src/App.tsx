@@ -982,10 +982,10 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
             <div className="face-registration-note">
               <div className="face-note-icon"><Camera size={20} /></div>
               <div>
-                <strong>Face registration is a separate step</strong>
-                <p>This form does not collect face images or biometric templates. Face registration will only be introduced after the privacy and consent safeguards are addressed.</p>
+                <strong>Face registration is available after saving</strong>
+                <p>Save the student record first, then use Face scan in the student directory to record the student's face with the lecturer's phone.</p>
               </div>
-              <span className="locked-pill"><Lock size={12} /> Not active</span>
+              <span className="locked-pill"><Camera size={12} /> Next step</span>
             </div>
 
             <div className="form-footer">
@@ -1045,8 +1045,8 @@ function RegistrationPage({ courses, onOpenFaceReadiness }: { courses: CourseRec
                         <td><span className="student-academic-cell">{student.faculty}<small>{student.department}</small></span></td>
                         <td>{courseNames.length ? courseNames.join(", ") : "No course listed"}</td>
                         <td>
-                          <button className="student-face-review-button" type="button" onClick={() => onOpenFaceReadiness(student)}>
-                            <Camera size={12} /> Review readiness
+                          <button className="student-face-review-button" type="button" onClick={() => onOpenFaceReadiness(student)} disabled={!student.is_active}>
+                            <Camera size={12} /> Face scan
                           </button>
                         </td>
                         <td><span className={student.is_active ? "student-status-pill active" : "student-status-pill archived"}>{student.is_active ? "Active" : "Archived"}</span></td>
