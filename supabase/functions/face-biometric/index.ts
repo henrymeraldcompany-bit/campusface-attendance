@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
+import { extractBearerToken } from "./auth-header.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://henrymeraldcompany-bit.github.io",
@@ -170,8 +171,8 @@ Deno.serve(async (request: Request) => {
   }
 
   const authorization = request.headers.get("authorization") ?? "";
-  const tokenMatch = authorization.match(/^Bearer\\s+(.+)$/i);
-  if (!tokenMatch) return response({ error: "A valid staff sign-in is required." }, 401);
+  const token = extractBearerToken(authorization);
+  if (!token) return response({ error: "A valid staff sign-in is required." }, 401);
 
   // Validate the caller independently with Supabase Auth. Do not pass the
   // caller's JWT into the privileged database client.
@@ -182,7 +183,7 @@ Deno.serve(async (request: Request) => {
       detectSessionInUrl: false,
     },
   });
-  const { data: authData, error: authError } = await authClient.auth.getUser(tokenMatch[1]);
+  const { data: authData, error: authError } = await authClient.auth.getUser(token);
   if (authError || !authData.user?.id) {
     return response({ error: "Your staff sign-in is no longer valid. Sign in again." }, 401);
   }
