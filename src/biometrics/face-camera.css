@@ -26,6 +26,10 @@
   display: block;
 }
 
+.face-camera-preview video.face-camera-selfie {
+  transform: scaleX(-1);
+}
+
 .face-camera-placeholder {
   position: absolute;
   inset: 0;

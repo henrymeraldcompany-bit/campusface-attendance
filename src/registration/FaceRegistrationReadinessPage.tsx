@@ -20,6 +20,9 @@ export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
   const [statusMessage, setStatusMessage] = useState("");
   const [enrolmentMessage, setEnrolmentMessage] = useState("");
   const [enrolmentError, setEnrolmentError] = useState("");
+  const consentReady = ageGroup !== "" &&
+    consentReference.trim().length >= 3 &&
+    consentVersion.trim().length > 0;
 
   useEffect(() => {
     let active = true;
@@ -166,10 +169,10 @@ export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
 
           <FaceCameraCapture
             title="Register student's face"
-            description="Position one face in the camera view and use good lighting. The feature is generated on this phone; the photograph and video are not uploaded."
+            description={consentReady ? "Position one face in the camera view and use good lighting. The face feature is generated on this phone; the camera photograph and video are not uploaded." : "Complete the age category and recorded consent details above before camera access is enabled."}
             actionLabel="Capture and register face"
             onCapture={handleCapture}
-            disabled={!student.is_active}
+            disabled={!student.is_active || !consentReady}
           />
         </>
       )}
