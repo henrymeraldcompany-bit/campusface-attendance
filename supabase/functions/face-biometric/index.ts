@@ -1,4 +1,4 @@
-import { withSupabase } from "npm:@supabase/server";
+import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://henrymeraldcompany-bit.github.io",
@@ -12,7 +12,41 @@ type JsonObject = Record<string, unknown>;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MODEL_ID = "opencv-sface-2021dec";
+
 const VECTOR_SIZE = 128;
+
+// Prefer Supabase's current key dictionaries, with legacy variables as a
+// compatibility fallback. These values are read only inside the Edge Function.
+function defaultApiKey(dictionaryName: string, legacyName: string): string | null {
+  const dictionaryValue = Deno.env.get(dictionaryName);
+  if (dictionaryValue) {
+    try {
+      const dictionary = JSON.parse(dictionaryValue) as Record<string, unknown>;
+      const defaultValue = dictionary.default;
+      if (typeof defaultValue === "string" && defaultValue.trim()) {
+        return defaultValue.trim();
+      }
+    } catch {
+      // Fall through to the legacy environment variable if parsing fails.
+    }
+  }
+  const legacyValue = Deno.env.get(legacyName);
+  return legacyValue?.trim() || null;
+}
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")?.trim() ?? "";
+const SUPABASE_PUBLISHABLE_KEY = defaultApiKey("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY");
+const SUPABASE_SERVER_KEY = defaultApiKey("SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY");
+
+const ADMIN_CLIENT = SUPABASE_URL && SUPABASE_SERVER_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVER_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    })
+  : null;
 
 function response(body: JsonObject, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders });
@@ -123,22 +157,46 @@ function cosineThreshold() {
   return threshold;
 }
 
-Deno.serve(withSupabase({ auth: "user" }, async (request: Request, context) => {
+Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return response({ error: "Method not allowed." }, 405);
   if (Number(request.headers.get("content-length") ?? "0") > 16000) {
     return response({ error: "The request is too large." }, 413);
   }
 
-  if (!context?.userClaims?.id || !context.supabaseAdmin) {
-    return response({ error: "A valid staff sign-in is required." }, 401);
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    console.error("face-biometric: Supabase authentication configuration is missing.");
+    return response({ error: "The secure face-scanning authentication service is not configured." }, 503);
   }
 
-  // withSupabase provides a user-validated context and a distinct service-role
-  // admin client. Vault access must use this admin client, not the caller's
-  // authenticated database role.
-  const admin = context.supabaseAdmin;
-  const actorId = String(context.userClaims.id);
+  const authorization = request.headers.get("authorization") ?? "";
+  const tokenMatch = authorization.match(/^Bearer\\s+(.+)$/i);
+  if (!tokenMatch) return response({ error: "A valid staff sign-in is required." }, 401);
+
+  // Validate the caller independently with Supabase Auth. Do not pass the
+  // caller's JWT into the privileged database client.
+  const authClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
+  const { data: authData, error: authError } = await authClient.auth.getUser(tokenMatch[1]);
+  if (authError || !authData.user?.id) {
+    return response({ error: "Your staff sign-in is no longer valid. Sign in again." }, 401);
+  }
+
+  if (!ADMIN_CLIENT) {
+    console.error("face-biometric: Supabase server-side secret key configuration is missing.");
+    return response({ error: "The secure face-scanning service is not configured on the server." }, 503);
+  }
+
+  // This client is constructed only from the Edge Function's server-side
+  // secret/service-role key. It has no per-request Authorization header, so
+  // the caller's authenticated role cannot leak into Vault or admin queries.
+  const admin = ADMIN_CLIENT;
+  const actorId = authData.user.id;
   const actor = await loadActor(admin, actorId);
   if (!actor) return response({ error: "An active lecturer or administrator account is required." }, 403);
 
@@ -414,4 +472,4 @@ Deno.serve(withSupabase({ auth: "user" }, async (request: Request, context) => {
   }
 
   return response({ error: "Unknown face-biometric action." }, 400);
-}));
+});
