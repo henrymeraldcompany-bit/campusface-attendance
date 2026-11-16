@@ -65,6 +65,10 @@ export function FaceCameraCapture({
       await videoRef.current.play();
       setCameraActive(true);
     } catch (reason) {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      if (videoRef.current) videoRef.current.srcObject = null;
+      setCameraActive(false);
       const message = reason instanceof Error ? reason.message : "The camera could not be opened.";
       setError(message);
     } finally {
