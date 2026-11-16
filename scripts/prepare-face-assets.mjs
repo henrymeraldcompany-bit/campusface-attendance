@@ -108,13 +108,25 @@ function copyRuntimeFiles(packageName, entry, target, matcher, required) {
     throw new Error(`Required runtime directory is missing: ${sourceDirectory}`);
   }
   mkdirSync(target, { recursive: true });
-  const copied = readdirSync(sourceDirectory).filter((file) => matcher.test(file));
+  const available = readdirSync(sourceDirectory);
+  const copied = available.filter((file) => matcher.test(file));
   for (const file of copied) {
     copyFileSync(join(sourceDirectory, file), join(target, file));
   }
-  for (const file of required) {
-    if (!existsSync(join(target, file))) {
-      throw new Error(`Required runtime file ${file} was not found in ${sourceDirectory}`);
+
+  if (packageName === "@mediapipe/tasks-vision") {
+    const hasWasm = copied.some((file) => file.endsWith(".wasm"));
+    const hasLoader = copied.some((file) => /\\.(?:js|mjs)$/.test(file));
+    if (!hasWasm || !hasLoader) {
+      throw new Error(
+        `No complete MediaPipe WASM fileset was found in ${sourceDirectory}. Package files: ${available.join(", ")}`,
+      );
+    }
+  } else {
+    for (const file of required) {
+      if (!existsSync(join(target, file))) {
+        throw new Error(`Required runtime file ${file} was not found in ${sourceDirectory}. Package files: ${available.join(", ")}`);
+      }
     }
   }
   console.log(`Prepared ${packageName} runtime: ${copied.join(", ")}`);
@@ -129,8 +141,8 @@ async function main() {
     "@mediapipe/tasks-vision",
     null,
     mediaPipeTarget,
-    /^vision_wasm.*\\.(?:js|wasm)$/,
-    ["vision_wasm_internal.js", "vision_wasm_internal.wasm"],
+    /^vision_wasm.*\\.(?:js|mjs|wasm)$/,
+    [],
   );
   copyRuntimeFiles(
     "onnxruntime-web",
