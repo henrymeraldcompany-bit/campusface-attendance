@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, CameraOff, LoaderCircle, ScanFace, ShieldCheck } from "lucide-react";
-import { extractFaceEmbedding } from "./face-engine";
+import { Camera, CameraOff, LoaderCircle, RefreshCw, ScanFace, ShieldCheck } from "lucide-react";
+import { extractFaceEmbedding, prepareFaceEngine } from "./face-engine";
 import "./face-camera.css";
 
 type Props = {
@@ -23,6 +23,8 @@ export function FaceCameraCapture({
   const [cameraActive, setCameraActive] = useState(false);
   const [starting, setStarting] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [modelLoading, setModelLoading] = useState(false);
+  const [modelReady, setModelReady] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment");
@@ -38,6 +40,23 @@ export function FaceCameraCapture({
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
   }, []);
+
+  const prepareModels = async () => {
+    if (modelLoading || modelReady) return;
+    setModelLoading(true);
+    setError("");
+    try {
+      await prepareFaceEngine();
+      setModelReady(true);
+    } catch (reason) {
+      setModelReady(false);
+      setError(reason instanceof Error
+        ? reason.message
+        : "CampusFace could not prepare the face models. Check your internet connection and retry.");
+    } finally {
+      setModelLoading(false);
+    }
+  };
 
   const startCamera = async () => {
     if (starting || cameraActive || disabled) return;
@@ -65,6 +84,10 @@ export function FaceCameraCapture({
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
       setCameraActive(true);
+
+      // Load the larger model files while the user positions their face,
+      // not after they press Capture and Register.
+      if (!modelReady) void prepareModels();
     } catch (reason) {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
@@ -78,7 +101,7 @@ export function FaceCameraCapture({
   };
 
   const capture = async () => {
-    if (!cameraActive || capturing || disabled || !videoRef.current) return;
+    if (!cameraActive || !modelReady || modelLoading || capturing || disabled || !videoRef.current) return;
     setCapturing(true);
     setError("");
     setNotice("");
@@ -86,9 +109,9 @@ export function FaceCameraCapture({
       const embedding = await extractFaceEmbedding(videoRef.current);
       stopCamera();
       await onCapture(embedding);
-      setNotice("The camera image and video stayed on this phone. A numeric face feature was sent to CampusFace for encrypted processing.");
+      setNotice("Registration completed. The camera image and video stayed on this phone; only the encrypted face feature was sent to CampusFace.");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Face capture failed. Try again.");
+      setError(reason instanceof Error ? reason.message : "Face capture or registration failed. Restart the camera and try again.");
     } finally {
       setCapturing(false);
     }
@@ -114,7 +137,7 @@ export function FaceCameraCapture({
             <small>Camera access begins only after you press Start camera.</small>
           </div>
         )}
-        {cameraActive && <span className="face-camera-guidance">Keep one face inside the frame</span>}
+        {cameraActive && <span className="face-camera-guidance">Keep one face inside the oval</span>}
       </div>
 
       <div className="face-camera-actions">
@@ -136,9 +159,22 @@ export function FaceCameraCapture({
           </>
         ) : (
           <>
-            <button className="primary-button" type="button" onClick={() => void capture()} disabled={disabled || capturing}>
-              {capturing ? <LoaderCircle size={16} className="spin" /> : <ScanFace size={16} />}
-              {capturing ? "Processing on phone..." : actionLabel}
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => modelReady ? void capture() : void prepareModels()}
+              disabled={disabled || capturing || modelLoading}
+            >
+              {capturing || modelLoading
+                ? <LoaderCircle size={16} className="spin" />
+                : modelReady ? <ScanFace size={16} /> : <RefreshCw size={16} />}
+              {capturing
+                ? "Registering securely..."
+                : modelLoading
+                  ? "Preparing face models..."
+                  : modelReady
+                    ? actionLabel
+                    : "Retry face setup"}
             </button>
             <button className="secondary-button" type="button" onClick={stopCamera} disabled={capturing}>
               <CameraOff size={16} />
@@ -149,7 +185,7 @@ export function FaceCameraCapture({
         <span className="face-camera-local-note"><ShieldCheck size={14} /> Video stays on this phone</span>
       </div>
 
-      <p className="face-camera-local-note">Camera frames are processed on this phone and are not uploaded. The numeric face feature is sent to CampusFace for encrypted enrollment or matching. The vision library may send technical usage metrics, not the camera video.</p>
+      <p className="face-camera-local-note">Face-detection and recognition models are prepared on this phone before capture. Camera frames are not uploaded. Only the numeric face feature is sent to CampusFace for encrypted processing.</p>
       {error && <div className="student-form-message" role="alert">{error}</div>}
       {notice && <div className="face-camera-success" role="status">{notice}</div>}
     </section>
