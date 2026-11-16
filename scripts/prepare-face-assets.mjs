@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { createWriteStream, existsSync, mkdirSync, readdirSync, rmSync, statSync, copyFileSync, renameSync, readFileSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
@@ -10,7 +10,7 @@ const publicRoot = join(root, "public", "face-models");
 const mediaPipeTarget = join(publicRoot, "mediapipe");
 const onnxTarget = join(publicRoot, "onnxruntime");
 const modelsTarget = join(publicRoot, "models");
-const require = createRequire(import.meta.url);
+
 
 const ASSETS = [
   {
@@ -99,7 +99,7 @@ async function downloadAsset(asset) {
 }
 
 function copyRuntimeFiles(packageName, entry, target, matcher, required) {
-  const packageEntry = require.resolve(entry || packageName);
+  const packageEntry = fileURLToPath(import.meta.resolve(entry || packageName));
   const packageDirectory = dirname(packageEntry);
   const sourceDirectory = packageName === "@mediapipe/tasks-vision"
     ? join(packageDirectory, "wasm")
