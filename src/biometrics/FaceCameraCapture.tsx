@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, CameraOff, LoaderCircle, ScanFace, ShieldCheck } from "lucide-react";
 import { extractFaceEmbedding } from "./face-engine";
+import "./face-camera.css";
 
 type Props = {
   title: string;
@@ -132,6 +133,7 @@ export function FaceCameraCapture({
         <span className="face-camera-local-note"><ShieldCheck size={14} /> Video stays on this phone</span>
       </div>
 
+      <p className="face-camera-local-note">Camera frames are processed on-device and are not uploaded. The vision library may send technical usage metrics; it does not send the camera video.</p>
       {error && <div className="student-form-message" role="alert">{error}</div>}
       {notice && <div className="face-camera-success" role="status">{notice}</div>}
     </section>
