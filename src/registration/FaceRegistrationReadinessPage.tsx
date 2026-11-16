@@ -9,6 +9,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { SyntheticFaceScanDemo } from "../biometrics/SyntheticFaceScanDemo";
 import type { ManagedStudentRecord } from "./EditStudentDialog";
 
 type BiometricGate = {
@@ -152,6 +153,8 @@ export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
           })}
         </div>
       </section>
+
+      <SyntheticFaceScanDemo />
 
       <section className="panel face-privacy-notice">
         <div className="face-privacy-icon"><ShieldCheck size={20} /></div>
