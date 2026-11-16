@@ -7,15 +7,17 @@
 - The AES-256-GCM template key is stored in Supabase Vault. The biometric Edge Function retrieves it through a service-role-only database function; it is not exposed to the browser.
 - The separate `face-biometric` Edge Function is deployed with JWT verification. The existing `manage-staff` function is unchanged.
 - The biometric tables currently contain no student templates. The end-to-end camera and model pipeline still needs a supervised real-phone test before relying on attendance results.
-- The feature branch is submitted as pull request #3. Until that pull request is merged, the GitHub Pages site on `main` does not contain this UI.
+- The phone camera, MediaPipe landmarking, SFace embedding, gated Supabase Edge Function, encrypted template tables and confirmed-attendance path are merged into `main` and deployed.
+- The biometric gate is enabled by an administrator attestation. This runtime flag is not a substitute for maintaining the institution-held approval and DPIA records.
+- The biometric tables were empty when the latest backend inspection was run. A supervised phone test is still required.
 
 ## How enrollment works
 
 1. An administrator selects **Face scan** beside an active student.
 2. The administrator records the student's age category, the institution-held consent reference and the consent document version.
-3. The lecturer/administrator taps Start camera. The HTTPS phone browser requests camera permission and prefers the rear camera.
+3. The lecturer/administrator records consent metadata before camera access is enabled, then selects the front or rear camera. The HTTPS phone browser requests camera permission.
 4. The phone checks that exactly one face is visible, finds face landmarks and computes a 128-value SFace feature locally.
-5. Only that feature is sent to the authenticated Supabase Edge Function. Camera video and source photographs are not uploaded or stored.
+5. Only that numerical feature is sent to the authenticated Supabase Edge Function. Camera video and source photographs are not uploaded or stored.
 6. The server encrypts the feature with AES-256-GCM and stores the encrypted template in the private table.
 
 For a student under 18, the consent authority must be a parent or legal guardian. Adult students must have their own consent recorded. The institution's non-biometric attendance option must remain available.
@@ -44,7 +46,8 @@ For a student under 18, the consent authority must be a parent or legal guardian
 - The current matching threshold is OpenCV SFace's reference cosine threshold of `0.363`. It has not been independently calibrated for this institution's student population, phones, camera distances or lighting. False matches and missed matches are possible.
 - Robust presentation-attack/liveness detection is not implemented. A photograph or replay could produce a candidate, so the lecturer must perform an in-person identity check before confirming attendance.
 - Only one face at a time is supported. Group scanning is not implemented.
-- First-time model loading requires internet access. Browser camera access requires HTTPS and the staff member's permission.
+- First-time model loading requires internet access. Browser camera access requires HTTPS and explicit browser permission.
+- This release also tests and fixes Bearer-token parsing in the biometric Edge Function.
 - Passing CI verifies code compilation, regression tests and browser acceptance tests; it does not certify face accuracy, fairness, liveness detection or camera performance on every phone.
 
 ## Release checks
