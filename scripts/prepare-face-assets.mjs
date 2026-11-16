@@ -116,7 +116,7 @@ function copyRuntimeFiles(packageName, entry, target, matcher, required) {
 
   if (packageName === "@mediapipe/tasks-vision") {
     const hasWasm = copied.some((file) => file.endsWith(".wasm"));
-    const hasLoader = copied.some((file) => /\\.(?:js|mjs)$/.test(file));
+    const hasLoader = copied.some((file) => /\.(?:js|mjs)$/.test(file));
     if (!hasWasm || !hasLoader) {
       throw new Error(
         `No complete MediaPipe WASM fileset was found in ${sourceDirectory}. Package files: ${available.join(", ")}`,
@@ -141,14 +141,14 @@ async function main() {
     "@mediapipe/tasks-vision",
     null,
     mediaPipeTarget,
-    /^vision_wasm.*\\.(?:js|mjs|wasm)$/,
+    /^vision_wasm.*\.(?:js|mjs|wasm)$/,
     [],
   );
   copyRuntimeFiles(
     "onnxruntime-web",
     null,
     onnxTarget,
-    /^ort-wasm-simd-threaded\\.(?:mjs|wasm)$/,
+    /^ort-wasm-simd-threaded\.(?:mjs|wasm)$/,
     ["ort-wasm-simd-threaded.mjs", "ort-wasm-simd-threaded.wasm"],
   );
 
