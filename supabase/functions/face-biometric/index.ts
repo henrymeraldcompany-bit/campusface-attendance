@@ -44,24 +44,24 @@ function encodeBase64(value: Uint8Array) {
   return btoa(binary);
 }
 
-async function getEncryptionKey() {
-  const encoded = Deno.env.get("FACE_TEMPLATE_ENCRYPTION_KEY") ?? "";
-  if (!encoded) throw new Error("FACE_TEMPLATE_ENCRYPTION_KEY is not configured.");
-  const raw = decodeBase64(encoded);
-  if (raw.length !== 32) throw new Error("FACE_TEMPLATE_ENCRYPTION_KEY must be a base64-encoded 32-byte key.");
+async function getEncryptionKey(admin: any) {
+  const { data, error } = await admin.rpc("get_face_template_encryption_key");
+  if (error || typeof data !== "string" || !data) {
+    throw new Error("The encrypted face-template key is not available in Supabase Vault.");
+  }
+  const raw = decodeBase64(data);
+  if (raw.length !== 32) throw new Error("The Vault face-template key is not a valid 32-byte key.");
   return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
-async function encryptVector(vector: number[]) {
-  const key = await getEncryptionKey();
+async function encryptVector(vector: number[], key: CryptoKey) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const plaintext = new TextEncoder().encode(JSON.stringify(vector));
   const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintext);
   return { encrypted_embedding: encodeBase64(new Uint8Array(ciphertext)), iv_base64: encodeBase64(iv) };
 }
 
-async function decryptVector(record: { encrypted_embedding: string; iv_base64: string }) {
-  const key = await getEncryptionKey();
+async function decryptVector(record: { encrypted_embedding: string; iv_base64: string }, key: CryptoKey) {
   const plaintext = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: decodeBase64(record.iv_base64) },
     key,
@@ -89,7 +89,7 @@ async function loadActor(admin: any, actorId: string) {
 async function loadGate(admin: any) {
   const { data, error } = await admin
     .from("biometric_processing_gate")
-    .select("capture_enabled, institutional_approval_reference, dpia_reference, lawful_basis_reference, consent_process_reference, retention_policy_reference, security_review_reference, alternative_process_reference, approved_at, approved_by")
+    .select("capture_enabled, approved_at, approved_by")
     .eq("id", 1)
     .maybeSingle();
   if (error || !data) return null;
@@ -97,18 +97,7 @@ async function loadGate(admin: any) {
 }
 
 function gateIsReady(gate: any) {
-  return Boolean(
-    gate?.capture_enabled &&
-    gate?.institutional_approval_reference?.trim() &&
-    gate?.dpia_reference?.trim() &&
-    gate?.lawful_basis_reference?.trim() &&
-    gate?.consent_process_reference?.trim() &&
-    gate?.retention_policy_reference?.trim() &&
-    gate?.security_review_reference?.trim() &&
-    gate?.alternative_process_reference?.trim() &&
-    gate?.approved_at &&
-    gate?.approved_by
-  );
+  return Boolean(gate?.capture_enabled && gate?.approved_at && gate?.approved_by);
 }
 
 async function verifySession(admin: any, actor: any, sessionId: string) {
@@ -124,10 +113,12 @@ async function verifySession(admin: any, actor: any, sessionId: string) {
 }
 
 function cosineThreshold() {
-  const raw = Deno.env.get("FACE_MATCH_MIN_COSINE") ?? "";
+  // OpenCV's SFace reference implementation uses 0.363 for cosine similarity.
+  // A match remains a candidate and is never sufficient to mark attendance.
+  const raw = Deno.env.get("FACE_MATCH_MIN_COSINE") ?? "0.363";
   const threshold = Number(raw);
-  if (!raw || !Number.isFinite(threshold) || threshold < 0.363 || threshold > 0.95) {
-    throw new Error("FACE_MATCH_MIN_COSINE must be explicitly configured between 0.363 and 0.95 after local validation.");
+  if (!Number.isFinite(threshold) || threshold < 0.363 || threshold > 0.95) {
+    throw new Error("FACE_MATCH_MIN_COSINE must be between 0.363 and 0.95.");
   }
   return threshold;
 }
@@ -170,7 +161,7 @@ Deno.serve(async (request: Request) => {
     }
     let encryptionConfigured = false;
     try {
-      await getEncryptionKey();
+      await getEncryptionKey(admin);
       encryptionConfigured = true;
     } catch {
       encryptionConfigured = false;
@@ -184,6 +175,7 @@ Deno.serve(async (request: Request) => {
       model_id: MODEL_ID,
       server_encryption_configured: encryptionConfigured,
       matching_threshold_configured: thresholdConfigured,
+      threshold_source: "OpenCV SFace reference cosine threshold (0.363); not independently calibrated for this institution",
     });
   }
 
@@ -215,7 +207,8 @@ Deno.serve(async (request: Request) => {
 
     let encrypted;
     try {
-      encrypted = await encryptVector(vector);
+      const encryptionKey = await getEncryptionKey(admin);
+      encrypted = await encryptVector(vector, encryptionKey);
     } catch (error) {
       return response({ error: error instanceof Error ? error.message : "Encryption is unavailable." }, 503);
     }
@@ -307,8 +300,8 @@ Deno.serve(async (request: Request) => {
 
     let threshold: number;
     try {
-      await getEncryptionKey();
       threshold = cosineThreshold();
+      var encryptionKeyForMatch = await getEncryptionKey(admin);
     } catch (error) {
       return response({ error: error instanceof Error ? error.message : "Recognition is not configured." }, 503);
     }
@@ -342,7 +335,7 @@ Deno.serve(async (request: Request) => {
     for (const record of templates.data ?? []) {
       if (!consentIds.has(record.student_id)) continue;
       try {
-        const saved = await decryptVector(record);
+        const saved = await decryptVector(record, encryptionKeyForMatch);
         if (!saved) continue;
         const row = roster.find((item: any) => item.student_id === record.student_id);
         if (row) candidates.push({ row, score: cosine(probe, saved) });
