@@ -1,4 +1,4 @@
-import { createSupabaseContext } from "npm:@supabase/server";
+import { withSupabase } from "npm:@supabase/server";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://henrymeraldcompany-bit.github.io",
@@ -123,18 +123,20 @@ function cosineThreshold() {
   return threshold;
 }
 
-Deno.serve(async (request: Request) => {
+Deno.serve(withSupabase({ auth: "user" }, async (request: Request, context) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return response({ error: "Method not allowed." }, 405);
   if (Number(request.headers.get("content-length") ?? "0") > 16000) {
     return response({ error: "The request is too large." }, 413);
   }
 
-  const { data: context, error: contextError } = await createSupabaseContext(request, { auth: "user" });
-  if (contextError || !context?.userClaims?.id || !context.supabaseAdmin) {
+  if (!context?.userClaims?.id || !context.supabaseAdmin) {
     return response({ error: "A valid staff sign-in is required." }, 401);
   }
 
+  // withSupabase provides a user-validated context and a distinct service-role
+  // admin client. Vault access must use this admin client, not the caller's
+  // authenticated database role.
   const admin = context.supabaseAdmin;
   const actorId = String(context.userClaims.id);
   const actor = await loadActor(admin, actorId);
@@ -412,4 +414,4 @@ Deno.serve(async (request: Request) => {
   }
 
   return response({ error: "Unknown face-biometric action." }, 400);
-});
+}));
