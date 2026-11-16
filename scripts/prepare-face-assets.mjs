@@ -127,7 +127,7 @@ async function main() {
 
   copyRuntimeFiles(
     "@mediapipe/tasks-vision",
-    "@mediapipe/tasks-vision/vision_bundle.mjs",
+    null,
     mediaPipeTarget,
     /^vision_wasm.*\\.(?:js|wasm)$/,
     ["vision_wasm_internal.js", "vision_wasm_internal.wasm"],
