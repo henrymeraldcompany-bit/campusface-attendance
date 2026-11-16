@@ -29,6 +29,11 @@ jobs:
         with:
           node-version: 24
 
+      - name: Restore verified face model assets
+        uses: actions/cache@v4
+        with:
+          path: public/face-models
+          key: campusface-face-models-v1-${{ hashFiles('package.json', 'scripts/prepare-face-assets.mjs') }}
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
