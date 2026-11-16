@@ -25,6 +25,7 @@ export function FaceCameraCapture({
   const [capturing, setCapturing] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment");
 
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -50,7 +51,7 @@ export function FaceCameraCapture({
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
-          facingMode: { ideal: "environment" },
+          facingMode: { ideal: cameraFacing },
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
@@ -85,7 +86,7 @@ export function FaceCameraCapture({
       const embedding = await extractFaceEmbedding(videoRef.current);
       stopCamera();
       await onCapture(embedding);
-      setNotice("Face feature captured on this phone. No photo or video was uploaded.");
+      setNotice("The camera image and video stayed on this phone. A numeric face feature was sent to CampusFace for encrypted processing.");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Face capture failed. Try again.");
     } finally {
@@ -105,7 +106,7 @@ export function FaceCameraCapture({
       </div>
 
       <div className={cameraActive ? "face-camera-preview active" : "face-camera-preview"}>
-        <video ref={videoRef} playsInline muted autoPlay aria-label="Live camera preview" />
+        <video ref={videoRef} className={cameraFacing === "user" ? "face-camera-selfie" : undefined} playsInline muted autoPlay aria-label="Live camera preview" />
         {!cameraActive && (
           <div className="face-camera-placeholder">
             <CameraOff size={27} />
@@ -118,10 +119,21 @@ export function FaceCameraCapture({
 
       <div className="face-camera-actions">
         {!cameraActive ? (
-          <button className="secondary-button" type="button" onClick={() => void startCamera()} disabled={disabled || starting || capturing}>
-            {starting ? <LoaderCircle size={16} className="spin" /> : <Camera size={16} />}
-            {starting ? "Opening camera..." : "Start camera"}
-          </button>
+          <>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => setCameraFacing((current) => current === "environment" ? "user" : "environment")}
+              disabled={disabled || starting || capturing}
+            >
+              <Camera size={16} />
+              {cameraFacing === "environment" ? "Use front camera" : "Use rear camera"}
+            </button>
+            <button className="secondary-button" type="button" onClick={() => void startCamera()} disabled={disabled || starting || capturing}>
+              {starting ? <LoaderCircle size={16} className="spin" /> : <Camera size={16} />}
+              {starting ? "Opening camera..." : "Start camera"}
+            </button>
+          </>
         ) : (
           <>
             <button className="primary-button" type="button" onClick={() => void capture()} disabled={disabled || capturing}>
@@ -137,7 +149,7 @@ export function FaceCameraCapture({
         <span className="face-camera-local-note"><ShieldCheck size={14} /> Video stays on this phone</span>
       </div>
 
-      <p className="face-camera-local-note">Camera frames are processed on-device and are not uploaded. The vision library may send technical usage metrics; it does not send the camera video.</p>
+      <p className="face-camera-local-note">Camera frames are processed on this phone and are not uploaded. The numeric face feature is sent to CampusFace for encrypted enrollment or matching. The vision library may send technical usage metrics, not the camera video.</p>
       {error && <div className="student-form-message" role="alert">{error}</div>}
       {notice && <div className="face-camera-success" role="status">{notice}</div>}
     </section>
