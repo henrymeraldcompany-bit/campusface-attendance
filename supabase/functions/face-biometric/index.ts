@@ -168,7 +168,13 @@ Deno.serve(async (request: Request) => {
     } catch {
       thresholdConfigured = false;
     }
-    const encryptionConfigured = Boolean(Deno.env.get("FACE_TEMPLATE_ENCRYPTION_KEY"));
+    let encryptionConfigured = false;
+    try {
+      await getEncryptionKey();
+      encryptionConfigured = true;
+    } catch {
+      encryptionConfigured = false;
+    }
     const gateEnabled = gateIsReady(gate);
     const ready = gateEnabled && encryptionConfigured && thresholdConfigured;
     return response({
