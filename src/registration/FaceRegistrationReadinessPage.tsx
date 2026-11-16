@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Camera, ShieldCheck, UserRound } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import { invokeFaceBiometric } from "../biometrics/face-biometric-client";
 import { FaceCameraCapture } from "../biometrics/FaceCameraCapture";
 import type { ManagedStudentRecord } from "./EditStudentDialog";
 
@@ -28,19 +28,26 @@ export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
     let active = true;
     const checkService = async () => {
       setStatusLoading(true);
-      const { data, error } = await supabase.functions.invoke("face-biometric", {
-        body: { action: "status" },
-      });
-      if (!active) return;
+      try {
+        const data = await invokeFaceBiometric({ action: "status" });
+        if (!active) return;
 
-      if (error || data?.error || !data?.ready) {
+        if (data?.ready !== true) {
+          setServerReady(false);
+          setStatusMessage("The secure face-scanning service is not fully configured. Contact the CampusFace administrator.");
+        } else {
+          setServerReady(true);
+          setStatusMessage("The secure face-scanning service is ready.");
+        }
+      } catch (reason) {
+        if (!active) return;
         setServerReady(false);
-        setStatusMessage(data?.error || "The secure face-scanning service is not ready. Contact the CampusFace administrator.");
-      } else {
-        setServerReady(true);
-        setStatusMessage("The secure face-scanning service is ready.");
+        setStatusMessage(reason instanceof Error
+          ? reason.message
+          : "CampusFace could not check the secure face service. Check your connection and retry.");
+      } finally {
+        if (active) setStatusLoading(false);
       }
-      setStatusLoading(false);
     };
     void checkService();
     return () => {
@@ -63,8 +70,8 @@ export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
     }
 
     const isMinor = ageGroup === "under-18";
-    const { data, error } = await supabase.functions.invoke("face-biometric", {
-      body: {
+    try {
+      const data = await invokeFaceBiometric({
         action: "enroll",
         student_id: student.id,
         embedding,
@@ -72,16 +79,16 @@ export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
         consent_authority: isMinor ? "parent_guardian" : "student",
         consent_reference: consentReference.trim(),
         consent_document_version: consentVersion.trim(),
-      },
-    });
-
-    if (error || data?.error) {
-      const message = data?.error || error?.message || "The face could not be registered. Try again.";
+      });
+      setEnrolmentMessage(data?.message || "The encrypted face feature was registered successfully.");
+    } catch (reason) {
+      const message = reason instanceof Error
+        ? reason.message
+        : "The face could not be registered. Check your connection and retry.";
       setEnrolmentError(message);
       throw new Error(message);
     }
 
-    setEnrolmentMessage(data?.message || "Face registered successfully. The encrypted face feature is stored securely.");
   };
 
   return (
