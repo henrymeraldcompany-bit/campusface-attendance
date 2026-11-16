@@ -2,14 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   AUTOMATIC_ATTENDANCE_FROM_SCAN_ENABLED,
   FACE_CAPTURE_IMPLEMENTED,
-  FACE_RECOGNITION_MODEL_INSTALLED,
+  FACE_RECOGNITION_ENGINE_INTEGRATED,
+  LIVE_BIOMETRIC_PROCESSING_ENABLED,
   simulateSyntheticFaceScan,
 } from "../src/biometrics/face-scan-prototype";
 
 describe("synthetic face scanner prototype", () => {
-  it("keeps camera capture, model installation and automatic marking disabled", () => {
-    expect(FACE_CAPTURE_IMPLEMENTED).toBe(false);
-    expect(FACE_RECOGNITION_MODEL_INSTALLED).toBe(false);
+  it("integrates the phone scanner while keeping live biometric processing and automatic marking locked", () => {
+    expect(FACE_CAPTURE_IMPLEMENTED).toBe(true);
+    expect(FACE_RECOGNITION_ENGINE_INTEGRATED).toBe(true);
+    expect(LIVE_BIOMETRIC_PROCESSING_ENABLED).toBe(false);
     expect(AUTOMATIC_ATTENDANCE_FROM_SCAN_ENABLED).toBe(false);
   });
 

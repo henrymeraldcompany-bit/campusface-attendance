@@ -1576,7 +1576,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .records-table tbody tr:last-child td { border-bottom: 0; }
 .records-table th { padding-top: 0; padding-bottom: 0; }
 .student-directory-mobile { display: none; }
-.student-face-review-button {
+.student-face-scan-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1591,8 +1591,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   font-weight: 750;
   white-space: nowrap;
 }
-.student-face-review-button:hover { border-color: var(--teal); }
-.student-face-review-button svg { flex: 0 0 auto; }
+.student-face-scan-button:hover { border-color: var(--teal); }
+.student-face-scan-button svg { flex: 0 0 auto; }
 
 .face-readiness-heading { align-items: center; }
 .face-readiness-heading .secondary-button { flex: 0 0 auto; white-space: nowrap; }
@@ -1793,7 +1793,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     color: var(--muted);
     font-size: 8px;
   }
-  .student-mobile-face-row .student-face-review-button { min-height: 28px; }
+  .student-mobile-face-row .student-face-scan-button { min-height: 28px; }
   .student-mobile-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;

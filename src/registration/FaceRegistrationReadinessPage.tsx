@@ -1,93 +1,93 @@
 import { useEffect, useState } from "react";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  FileCheck2,
-  LockKeyhole,
-  ShieldAlert,
-  ShieldCheck,
-  UserRound,
-} from "lucide-react";
+import { ArrowLeft, Camera, ShieldCheck, UserRound } from "lucide-react";
 import { supabase } from "../lib/supabase";
-import { SyntheticFaceScanDemo } from "../biometrics/SyntheticFaceScanDemo";
+import { FaceCameraCapture } from "../biometrics/FaceCameraCapture";
 import type { ManagedStudentRecord } from "./EditStudentDialog";
-
-type BiometricGate = {
-  capture_enabled: boolean;
-  institutional_approval_reference: string | null;
-  dpia_reference: string | null;
-  lawful_basis_reference: string | null;
-  consent_process_reference: string | null;
-  retention_policy_reference: string | null;
-  security_review_reference: string | null;
-  alternative_process_reference: string | null;
-  approved_at: string | null;
-};
 
 type Props = {
   student: ManagedStudentRecord;
   onBack: () => void;
 };
 
-const REQUIREMENTS = [
-  { label: "Written institutional approval for the proposed face-recognition use", field: "institutional_approval_reference" },
-  { label: "Completed and reviewed Data Protection Impact Assessment (DPIA)", field: "dpia_reference" },
-  { label: "Documented lawful basis and specific purpose for processing", field: "lawful_basis_reference" },
-  { label: "Clear student information and a voluntary, recorded consent process", field: "consent_process_reference" },
-  { label: "Retention, access, deletion and withdrawal procedures", field: "retention_policy_reference" },
-  { label: "Security review covering storage, access and breach response", field: "security_review_reference" },
-  { label: "A practical non-biometric attendance alternative", field: "alternative_process_reference" },
-] as const;
+type AgeGroup = "under-18" | "18-or-older" | "";
 
 export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
-  const [gate, setGate] = useState<BiometricGate | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const [ageGroup, setAgeGroup] = useState<AgeGroup>("");
+  const [consentReference, setConsentReference] = useState("");
+  const [consentVersion, setConsentVersion] = useState("CAMPUSFACE-CONSENT-v1");
+  const [serverReady, setServerReady] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [enrolmentMessage, setEnrolmentMessage] = useState("");
+  const [enrolmentError, setEnrolmentError] = useState("");
 
   useEffect(() => {
     let active = true;
-    const loadGate = async () => {
-      const { data, error } = await supabase
-        .from("biometric_processing_gate")
-        .select("capture_enabled, institutional_approval_reference, dpia_reference, lawful_basis_reference, consent_process_reference, retention_policy_reference, security_review_reference, alternative_process_reference, approved_at")
-        .eq("id", 1)
-        .maybeSingle();
-
+    const checkService = async () => {
+      setStatusLoading(true);
+      const { data, error } = await supabase.functions.invoke("face-biometric", {
+        body: { action: "status" },
+      });
       if (!active) return;
-      if (error || !data) {
-        setLoadError("The biometric readiness setting could not be verified. Face registration remains locked.");
-        setGate(null);
-      } else {
-        setGate(data as BiometricGate);
-      }
-      setLoading(false);
-    };
 
-    void loadGate();
+      if (error || data?.error || !data?.ready) {
+        setServerReady(false);
+        setStatusMessage(data?.error || "The secure face-scanning service is not ready. Contact the CampusFace administrator.");
+      } else {
+        setServerReady(true);
+        setStatusMessage("The secure face-scanning service is ready.");
+      }
+      setStatusLoading(false);
+    };
+    void checkService();
     return () => {
       active = false;
     };
   }, []);
 
-  const requirementsComplete = Boolean(
-    gate?.institutional_approval_reference &&
-    gate?.dpia_reference &&
-    gate?.lawful_basis_reference &&
-    gate?.consent_process_reference &&
-    gate?.retention_policy_reference &&
-    gate?.security_review_reference &&
-    gate?.alternative_process_reference &&
-    gate?.approved_at
-  );
-  const ready = Boolean(gate?.capture_enabled && requirementsComplete);
+  const handleCapture = async (embedding: number[]) => {
+    setEnrolmentError("");
+    setEnrolmentMessage("");
+
+    if (!student.is_active) {
+      throw new Error("Archived student records cannot be enrolled.");
+    }
+    if (!ageGroup) {
+      throw new Error("Select the student's age category before capturing a face.");
+    }
+    if (consentReference.trim().length < 3 || !consentVersion.trim()) {
+      throw new Error("Enter the recorded consent reference and consent document version before capturing a face.");
+    }
+
+    const isMinor = ageGroup === "under-18";
+    const { data, error } = await supabase.functions.invoke("face-biometric", {
+      body: {
+        action: "enroll",
+        student_id: student.id,
+        embedding,
+        student_is_minor: isMinor,
+        consent_authority: isMinor ? "parent_guardian" : "student",
+        consent_reference: consentReference.trim(),
+        consent_document_version: consentVersion.trim(),
+      },
+    });
+
+    if (error || data?.error) {
+      const message = data?.error || error?.message || "The face could not be registered. Try again.";
+      setEnrolmentError(message);
+      throw new Error(message);
+    }
+
+    setEnrolmentMessage(data?.message || "Face registered successfully. The encrypted face feature is stored securely.");
+  };
 
   return (
     <>
       <div className="page-heading face-readiness-heading">
         <div>
-          <div className="eyebrow">STUDENT RECORDS / FACE REGISTRATION</div>
-          <h1>Face registration readiness</h1>
-          <p>Review this student's enrollment prerequisites and the institution's biometric-processing status.</p>
+          <div className="eyebrow">STUDENT DIRECTORY / FACE PROFILE</div>
+          <h1>Face scan</h1>
+          <p>Register a face profile for this student using the lecturer's phone camera.</p>
         </div>
         <button className="secondary-button" type="button" onClick={onBack}>
           <ArrowLeft size={16} />
@@ -107,65 +107,78 @@ export function FaceRegistrationReadinessPage({ student, onBack }: Props) {
         </span>
       </section>
 
-      <section className="panel face-readiness-status">
-        <div className="face-readiness-status-icon">
-          {ready ? <CheckCircle2 size={24} /> : <LockKeyhole size={24} />}
-        </div>
-        <div className="face-readiness-status-copy">
-          <span className="eyebrow">BIOMETRIC PROCESSING STATUS</span>
-          <h2>{loading ? "Checking readiness..." : ready ? "Governance gate enabled" : "Face registration is locked"}</h2>
-          <p>
-            {loading
-              ? "Checking the institution's approved processing settings."
-              : ready
-                ? "The governance gate is enabled. The camera enrollment workflow has not yet been activated in this release."
-                : "CampusFace will not request camera access, capture a face image, create a biometric template or upload face data while this gate is locked."}
-          </p>
-        </div>
-        <span className={ready ? "face-gate-pill ready" : "face-gate-pill blocked"}>
-          {loading ? "Checking" : ready ? "Approved gate" : "Blocked"}
-        </span>
-      </section>
-
-      {loadError && <div className="student-form-message" role="alert"><ShieldAlert size={16} /><span>{loadError}</span></div>}
-
-      <section className="panel face-requirements-panel">
-        <div className="panel-heading">
+      {statusLoading ? (
+        <section className="panel face-readiness-status">
+          <span>Checking the secure face-scanning service...</span>
+        </section>
+      ) : !serverReady ? (
+        <section className="panel face-privacy-notice" role="alert">
+          <div className="face-privacy-icon"><ShieldCheck size={20} /></div>
           <div>
-            <div className="eyebrow">REQUIRED BEFORE ENROLLMENT</div>
-            <h2>Institutional safeguards</h2>
-            <p>Each item must be reviewed and documented by the responsible institution before any biometric collection is enabled.</p>
+            <strong>Face scanning is temporarily unavailable</strong>
+            <p>{statusMessage}</p>
           </div>
-          <FileCheck2 size={21} />
-        </div>
-        <div className="face-requirements-list">
-          {REQUIREMENTS.map((requirement, index) => {
-            const reference = gate?.[requirement.field];
-            return (
-              <div className="face-requirement-row" key={requirement.field}>
-                <span className="face-requirement-number">{index + 1}</span>
-                <span>{requirement.label}</span>
-                <span className={reference ? "face-requirement-state recorded" : "face-requirement-state"}>
-                  {reference ? "Reference recorded" : "Not recorded"}
-                </span>
+        </section>
+      ) : (
+        <>
+          <section className="panel face-consent-panel">
+            <div className="panel-heading">
+              <div>
+                <div className="eyebrow">STUDENT CONSENT RECORD</div>
+                <h2>Confirm the student's consent</h2>
+                <p>Enter the reference for the consent already recorded by the institution. For a student under 18, the record must be parent/guardian consent.</p>
               </div>
-            );
-          })}
-        </div>
-      </section>
+              <ShieldCheck size={21} />
+            </div>
 
-      <SyntheticFaceScanDemo />
+            <label className="field">
+              <span>Student age category</span>
+              <select value={ageGroup} onChange={(event) => setAgeGroup(event.target.value as AgeGroup)}>
+                <option value="">Choose age category</option>
+                <option value="under-18">Under 18 — parent/guardian consent</option>
+                <option value="18-or-older">18 or older — student's consent</option>
+              </select>
+            </label>
+
+            <label className="field">
+              <span>Consent record reference</span>
+              <input
+                value={consentReference}
+                onChange={(event) => setConsentReference(event.target.value)}
+                maxLength={240}
+                placeholder="Enter the institution's consent record reference"
+              />
+            </label>
+
+            <label className="field">
+              <span>Consent document version</span>
+              <input
+                value={consentVersion}
+                onChange={(event) => setConsentVersion(event.target.value)}
+                maxLength={80}
+                placeholder="e.g. CAMPUSFACE-CONSENT-v1"
+              />
+            </label>
+
+            {enrolmentMessage && <div className="face-camera-success" role="status">{enrolmentMessage}</div>}
+            {enrolmentError && <div className="student-form-message" role="alert">{enrolmentError}</div>}
+          </section>
+
+          <FaceCameraCapture
+            title="Register student's face"
+            description="Position one face in the camera view and use good lighting. The feature is generated on this phone; the photograph and video are not uploaded."
+            actionLabel="Capture and register face"
+            onCapture={handleCapture}
+            disabled={!student.is_active}
+          />
+        </>
+      )}
 
       <section className="panel face-privacy-notice">
-        <div className="face-privacy-icon"><ShieldCheck size={20} /></div>
+        <div className="face-privacy-icon"><Camera size={20} /></div>
         <div>
-          <strong>Why this step is locked</strong>
-          <p>
-            Facial data used to uniquely identify a person is sensitive personal data under Nigeria's
-            Data Protection Act. The institution must establish and document the applicable safeguards
-            before this app collects or processes it. A non-biometric attendance method must remain
-            available.
-          </p>
+          <strong>How face registration works</strong>
+          <p>CampusFace stores an encrypted recognition template, not the camera video or photograph. A student's template can be withdrawn by an authorised administrator. Students must retain access to the institution's approved non-biometric attendance option.</p>
         </div>
       </section>
     </>

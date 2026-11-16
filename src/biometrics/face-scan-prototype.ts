@@ -19,17 +19,18 @@ export type SyntheticScanResult = {
 };
 
 /**
- * This branch contains a UI-only demonstration, not a biometric scanner.
- * These constants deliberately remain false until a separately approved
- * implementation is designed, reviewed and tested.
+ * The phone capture and recognition engine are integrated on the feature branch.
+ * Production processing is still locked by the server-side governance gate.
  */
-export const FACE_CAPTURE_IMPLEMENTED = false as const;
-export const FACE_RECOGNITION_MODEL_INSTALLED = false as const;
+export const FACE_CAPTURE_IMPLEMENTED = true as const;
+export const FACE_RECOGNITION_ENGINE_INTEGRATED = true as const;
+export const LIVE_BIOMETRIC_PROCESSING_ENABLED = false as const;
 export const AUTOMATIC_ATTENDANCE_FROM_SCAN_ENABLED = false as const;
 
 /**
- * Produces fixed demonstration outcomes. It does not read a camera, accept
- * image data, call a model, access student records or write to Supabase.
+ * Produces fixed synthetic outcomes for UI regression tests only.
+ * It does not read a camera, call the model, access student records or write
+ * to Supabase; live scanning lives in the separate gated camera components.
  */
 export function simulateSyntheticFaceScan(
   scenario: SyntheticScanScenario,
