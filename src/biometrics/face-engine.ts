@@ -28,8 +28,25 @@ async function loadRecognizer(): Promise<ort.InferenceSession> {
   ort.env.wasm.numThreads = 1;
   ort.env.wasm.proxy = false;
 
-  const response = await fetch(SFACE_MODEL, { cache: "force-cache" });
-  if (!response.ok) throw new Error("The recognition model could not be downloaded. Check your internet connection.");
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000);
+  let response: Response;
+  try {
+    response = await fetch(SFACE_MODEL, {
+      cache: "force-cache",
+      signal: controller.signal,
+    });
+  } catch (reason) {
+    if (reason instanceof DOMException && reason.name === "AbortError") {
+      throw new Error("The face-recognition model download timed out after 60 seconds. Check your connection and tap Retry face setup.");
+    }
+    throw new Error("CampusFace could not download the face-recognition model. Check that your phone has a stable internet connection, then tap Retry face setup.");
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  if (!response.ok) {
+    throw new Error(`The face-recognition model server returned HTTP ${response.status}. Please retry when your connection is stable.`);
+  }
   const modelBytes = await response.arrayBuffer();
   const digest = await crypto.subtle.digest("SHA-256", modelBytes);
   if (toHex(digest) !== SFACE_SHA256) {
@@ -45,7 +62,12 @@ async function loadRecognizer(): Promise<ort.InferenceSession> {
 }
 
 async function createLandmarker(): Promise<FaceLandmarker> {
-  const fileset = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM);
+  let fileset: Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>;
+  try {
+    fileset = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM);
+  } catch {
+    throw new Error("CampusFace could not load its face-detection files. Check your internet connection and tap Retry face setup.");
+  }
   try {
     return await FaceLandmarker.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: LANDMARK_MODEL, delegate: "GPU" },
@@ -58,17 +80,29 @@ async function createLandmarker(): Promise<FaceLandmarker> {
       outputFacialTransformationMatrixes: false,
     });
   } catch {
-    return FaceLandmarker.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath: LANDMARK_MODEL, delegate: "CPU" },
-      runningMode: "VIDEO",
-      numFaces: 2,
-      minFaceDetectionConfidence: 0.65,
-      minFacePresenceConfidence: 0.65,
-      minTrackingConfidence: 0.65,
-      outputFaceBlendshapes: false,
-      outputFacialTransformationMatrixes: false,
-    });
+    try {
+      return await FaceLandmarker.createFromOptions(fileset, {
+        baseOptions: { modelAssetPath: LANDMARK_MODEL, delegate: "CPU" },
+        runningMode: "VIDEO",
+        numFaces: 2,
+        minFaceDetectionConfidence: 0.65,
+        minFacePresenceConfidence: 0.65,
+        minTrackingConfidence: 0.65,
+        outputFaceBlendshapes: false,
+        outputFacialTransformationMatrixes: false,
+      });
+    } catch {
+      throw new Error("CampusFace could not initialise face detection. Reload the page, check your internet connection, and tap Retry face setup.");
+    }
   }
+}
+
+/**
+ * Preloads and verifies the on-device face models before the user captures.
+ * This avoids hiding large first-run model downloads behind the Capture button.
+ */
+export async function prepareFaceEngine(): Promise<void> {
+  await getEngine();
 }
 
 async function getEngine(): Promise<FaceEngine> {
