@@ -161,12 +161,23 @@ Deno.serve(async (request: Request) => {
   if (action === "status") {
     const gate = await loadGate(admin);
     if (!gate) return response({ error: "Biometric readiness could not be verified. Processing remains locked." }, 503);
+    let thresholdConfigured = false;
+    try {
+      cosineThreshold();
+      thresholdConfigured = true;
+    } catch {
+      thresholdConfigured = false;
+    }
+    const encryptionConfigured = Boolean(Deno.env.get("FACE_TEMPLATE_ENCRYPTION_KEY"));
+    const gateEnabled = gateIsReady(gate);
+    const ready = gateEnabled && encryptionConfigured && thresholdConfigured;
     return response({
-      capture_enabled: gateIsReady(gate),
-      ready: gateIsReady(gate),
+      capture_enabled: ready,
+      gate_enabled: gateEnabled,
+      ready,
       model_id: MODEL_ID,
-      server_encryption_configured: Boolean(Deno.env.get("FACE_TEMPLATE_ENCRYPTION_KEY")),
-      matching_threshold_configured: Boolean(Deno.env.get("FACE_MATCH_MIN_COSINE")),
+      server_encryption_configured: encryptionConfigured,
+      matching_threshold_configured: thresholdConfigured,
     });
   }
 
@@ -351,6 +362,10 @@ Deno.serve(async (request: Request) => {
         message: "No sufficiently distinct candidate was found. Use manual identity verification.",
       });
     }
+
+    await admin.from("face_match_tickets")
+      .delete()
+      .lt("expires_at", new Date().toISOString());
 
     const ticketExpiry = new Date(Date.now() + 60_000).toISOString();
     const { data: ticket, error: ticketError } = await admin
