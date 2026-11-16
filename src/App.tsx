@@ -414,7 +414,7 @@ function App({ staffProfile, onSignOut }: { staffProfile: StaffProfile; onSignOu
                   {isAdministrator
                     ? "You can manage student records and attendance across the course catalogue."
                     : "Only courses assigned to your lecturer account are available for attendance."}{" "}
-                  Face scanning is not yet implemented and remains disabled.
+                  The phone face-scanning workflow is implemented but remains locked until the institution's safeguards are documented and enabled.
                 </span>
               </div>
 
