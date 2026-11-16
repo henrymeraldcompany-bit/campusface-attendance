@@ -30,13 +30,21 @@ async function loadRecognizer(): Promise<ort.InferenceSession> {
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60_000);
-  let response: Response;
+  let modelBytes: ArrayBuffer;
   try {
-    response = await fetch(SFACE_MODEL, {
+    const response = await fetch(SFACE_MODEL, {
       cache: "force-cache",
       signal: controller.signal,
     });
+    if (!response.ok) {
+      throw new Error(`The face-recognition model server returned HTTP ${response.status}. Please retry when your connection is stable.`);
+    }
+    // Keep the timeout active until the complete model file has downloaded.
+    modelBytes = await response.arrayBuffer();
   } catch (reason) {
+    if (reason instanceof Error && reason.message.startsWith("The face-recognition model server returned HTTP")) {
+      throw reason;
+    }
     if (reason instanceof DOMException && reason.name === "AbortError") {
       throw new Error("The face-recognition model download timed out after 60 seconds. Check your connection and tap Retry face setup.");
     }
@@ -44,10 +52,6 @@ async function loadRecognizer(): Promise<ort.InferenceSession> {
   } finally {
     clearTimeout(timeoutId);
   }
-  if (!response.ok) {
-    throw new Error(`The face-recognition model server returned HTTP ${response.status}. Please retry when your connection is stable.`);
-  }
-  const modelBytes = await response.arrayBuffer();
   const digest = await crypto.subtle.digest("SHA-256", modelBytes);
   if (toHex(digest) !== SFACE_SHA256) {
     throw new Error("The downloaded recognition model failed its integrity check.");
@@ -111,6 +115,10 @@ async function getEngine(): Promise<FaceEngine> {
       .then(([landmarker, recognizer]) => ({ landmarker, recognizer }))
       .catch((error) => {
         enginePromise = null;
+        const message = error instanceof Error ? error.message : String(error);
+        if (/failed to fetch|networkerror|network request failed/i.test(message)) {
+          throw new Error("CampusFace could not download one of its on-device recognition files. Check your internet connection and tap Retry face setup.");
+        }
         throw error;
       });
   }
