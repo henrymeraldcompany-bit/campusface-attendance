@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { SyntheticFaceScanDemo } from "../biometrics/SyntheticFaceScanDemo";
 import {
   calculateAttendanceSummary,
   csvCell,
@@ -462,6 +463,8 @@ export function SessionRosterPage({ session, onBack }: Props) {
           </div>
         )}
       </section>
+
+      <SyntheticFaceScanDemo />
 
       {(actionMessage || actionError) && (
         <div className="student-form-message" role={actionError ? "alert" : "status"}>
