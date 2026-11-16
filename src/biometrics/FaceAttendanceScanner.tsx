@@ -83,7 +83,7 @@ export function FaceAttendanceScanner({ sessionId, disabled = false, onAttendanc
           <ShieldAlert size={19} />
           <div>
             <strong>Face scanning is locked</strong>
-            <p>The biometric processing gate is disabled or its required safeguards could not be verified. Continue with manual attendance.</p>
+            <p>The face-scanning service is not ready. Continue with manual attendance while the administrator checks the service.</p>
           </div>
           <span className="face-gate-pill blocked">Locked</span>
         </div>
