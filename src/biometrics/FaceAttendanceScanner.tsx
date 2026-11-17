@@ -34,7 +34,7 @@ export function FaceAttendanceScanner({ sessionId, disabled = false, onAttendanc
     });
     if (data?.error) throw new Error(data.error);
     if (data?.outcome === "manual_review") {
-      setMessage(data.message || "No clear candidate was found. Use manual verification.");
+      setMessage("No reliable face match was found. Attendance has not been recorded. Improve the lighting, position the student's face inside the oval, and scan again.");
       return;
     }
     if (data?.outcome !== "candidate" || !data?.ticket_id || !data?.student?.id) {
@@ -74,7 +74,7 @@ export function FaceAttendanceScanner({ sessionId, disabled = false, onAttendanc
         <div>
           <div className="eyebrow">ATTENDANCE / FACE CANDIDATE REVIEW</div>
           <h2>Scan a student</h2>
-          <p>Scan one person at a time. A possible match is only a suggestion; the lecturer must verify the student in person before saving attendance.</p>
+          <p>Scan each student individually. Attendance is saved only after the face scan identifies that student and the lecturer confirms their identity in person.</p>
         </div>
         <ScanFace size={22} />
       </div>
@@ -84,7 +84,7 @@ export function FaceAttendanceScanner({ sessionId, disabled = false, onAttendanc
           <ShieldAlert size={19} />
           <div>
             <strong>Face scanning is locked</strong>
-            <p>The face-scanning service is not ready. Continue with manual attendance while the administrator checks the service.</p>
+            <p>Attendance cannot be recorded until face scanning is available. Manual present marking is disabled. Contact the CampusFace administrator if the scanner remains locked.</p>
           </div>
           <span className="face-gate-pill blocked">Locked</span>
         </div>
@@ -110,7 +110,7 @@ export function FaceAttendanceScanner({ sessionId, disabled = false, onAttendanc
             <CheckCircle2 size={16} />
             {busy ? "Saving..." : "Confirm attendance"}
           </button>
-          <button className="secondary-button" type="button" onClick={() => { setCandidate(null); setTicketId(""); setMessage("Candidate rejected. Use the manual attendance process."); }}>
+          <button className="secondary-button" type="button" onClick={() => { setCandidate(null); setTicketId(""); setMessage("Candidate rejected. No attendance was recorded. Scan the student again."); }}>
             Not this student
           </button>
         </div>
