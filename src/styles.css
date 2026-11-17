@@ -2361,7 +2361,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 
 
-/* Manual attendance marking and confirmation */
+/* Session attendance status and face-confirmation indicators */
 .session-attendance-stats { margin-bottom: 16px; }
 .session-roster-student.is-present { background: rgba(35, 145, 94, .035); }
 .session-attendance-mark-present {
@@ -2495,6 +2495,28 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 :root[data-theme="dark"] .session-roster-filters button.active {
   border-color: rgba(var(--accent-rgb, 22,123,123), .42);
   color: #d2ebe8;
+}
+.session-attendance-mark-required {
+  display: grid;
+  min-width: 90px;
+  justify-items: end;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 750;
+  text-align: right;
+}
+.session-attendance-mark-required svg {
+  color: var(--teal-dark);
+}
+:root[data-theme="dark"] .session-attendance-mark-required svg {
+  color: #a5d9d4;
+}
+@media (max-width: 760px) {
+  .session-attendance-mark-required {
+    min-width: 76px;
+    font-size: 8px;
+  }
 }
 :root[data-theme="dark"] .session-attendance-mark-absent { color: #f2a9a0; }
 @media (max-width: 760px) {
